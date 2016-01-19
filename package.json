@@ -1,0 +1,45 @@
+{
+  "name": "gulp-wires",
+  "version": "0.1.0",
+  "description": "Basic configuration for modular gulp tasks.",
+  "main": "lib/index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "gulp test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yoannisj/gulp-wires.git"
+  },
+  "keywords": [
+    "gulpfriendly",
+    "nodejs",
+    "gulp",
+    "configuration"
+  ],
+  "author": "Yoannis Jamar <yoannis.j@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yoannisj/gulp-wires/issues"
+  },
+  "homepage": "https://github.com/yoannisj/gulp-wires#readme",
+  "devDependencies": {
+    "gulp": "^3.9.0",
+    "gulp-jasmine": "^2.2.1",
+    "gulp-load-plugins": "^1.2.0",
+    "gulp-util": "^3.0.7",
+    "jasmine-reporters": "^2.1.1"
+  },
+  "dependencies": {
+    "array-ify": "^1.0.0",
+    "globjoin": "^0.1.2",
+    "globule": "^0.2.0",
+    "gulp-load-plugins": "^1.2.0",
+    "gulp-util": "^3.0.7",
+    "is-glob": "^2.0.1",
+    "lodash": "^4.0.0",
+    "strip-path": "^1.0.0"
+  }
+}
