@@ -1,0 +1,25 @@
+{
+  "name": "gulp-wires",
+  "version": "0.1.0",
+  "description": "Configuration and helpers for modular gulp tasks.",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yoannisj/gulp-wires.git"
+  },
+  "keywords": [
+    "gulpfriendly",
+    "nodejs",
+    "gulp",
+    "configuration",
+    "modular"
+  ],
+  "author": "Yoannis Jamar <yoannis.j@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yoannisj/gulp-wires/issues"
+  },
+  "homepage": "https://github.com/yoannisj/gulp-wires#readme",
+  "devDependencies": {},
+  "dependencies": {}
+}
