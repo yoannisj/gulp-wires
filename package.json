@@ -2,7 +2,7 @@
   "name": "gulp-wires",
   "version": "0.1.0",
   "description": "Basic configuration for modular gulp tasks.",
-  "main": "lib/index.js",
+  "main": "index.js",
   "directories": {
     "test": "tests"
   },
@@ -26,6 +26,7 @@
   },
   "homepage": "https://github.com/yoannisj/gulp-wires#readme",
   "devDependencies": {
+    "expander": "^0.3.3",
     "gulp": "^3.9.0",
     "gulp-jasmine": "^2.2.1",
     "gulp-load-plugins": "^1.2.0",

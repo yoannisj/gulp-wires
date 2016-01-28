@@ -13,8 +13,9 @@ gulp.task('test', function() {
     })
   };
 
-  var fpath = gutil.env.spec ? gutil.env.spec + '.spec.js' : '**/*.spec.js';
+  var glob = gutil.env.spec ? gutil.env.spec + '.spec.js' : '**/*.spec.js';
 
-  return gulp.src('tests/' + fpath)
+  return gulp.src('tests/' + glob)
     .pipe(plugins.jasmine( jasmineOptions ));
+
 });

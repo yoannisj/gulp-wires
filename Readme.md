@@ -7,6 +7,8 @@ Basic configuration for modular gulp tasks.
 
 Require wires in your `gulpfile.js` and initiliaze with proper configuration as follows:
 
+### Require and setup
+
 Specify path to configuration module
 
     var wires = require('gulp-wires')('./build/config.js');
@@ -21,34 +23,28 @@ Pass configuration object
         }
     });
 
-Automatically load all tasks
+### Loading Tasks
 
-    var wires = require('gulp-wires')('./build/config.js', true);
+Load a list of tasks
 
-Load specified tasks only
+    wires.loadTasks(['my-task', 'my-other-task']);
 
-    var wires = require('gulp-wires');
-    wires('./build/config.js', ['my-task', 'my-other-task']);
+Specify loaded task dependencies
 
-Specify loaded tasks' dependencies
-
-    var wires = require('gulp-wires');
-    wires('./build/config.js', {
+    wires.loadTasks({
         'my-task': ['my-other-task'],
         'my-other-task': []
     });
 
 Specify loaded task filenames
 
-    var wires = require('gulp-wires');
-    wires('./build/config.js', {
+    wires.loadTasks({
         'my-task': './path/to/task-file.js',
         'my-other-task': './other-task.js'
     });
 
 Specify loaded task dependencies and filenames
 
-    var wires = require('gulp-wires');
     wires('./build/config.js', {
         'my-task': {
             deps: ['my-other-task'],
@@ -59,36 +55,34 @@ Specify loaded task dependencies and filenames
 
 ### Configuration
 
-The `config.js` file must export a function that receives `gulputil.env` as unique argument, and returns an object. Here is a sample configuration file with the minimum settings required for gulp-wires to work correctly, and their default values. It is equivalent to exporting an empty object.
+The configuration module must export a configuration object. Here is a sample configuration file with the minimum settings required for gulp-wires to work correctly, and their default values. It is equivalent to exporting an empty object.
 
-    module.exports = function(env) {
-        return {
-            root: {
-                tasks: './build/tasks/',
-                options: './build/options/',
-                plugins: './node_modules',
-                src: './src',
-                dest: './dest'
-            },
-            tasks: {
-                'task-name': {
-                    deps: [],
-                    root: {
-                        src: '<%= root.src %>',
-                        dest: '<%= root.dest %>'
-                    },
-                    dir: {
-                        src: './',
-                        dest: './'
-                    }
-                    files: {
-                        src: './*'
-                        watch: './**/*'
-                    }
+    module.exports = {
+        root: {
+            tasks: './build/tasks/',
+            options: './build/options/',
+            plugins: './node_modules',
+            src: './src',
+            dest: './dist'
+        },
+        tasks: {
+            'task-name': {
+                deps: [],
+                root: {
+                    src: '<%= root.src %>',
+                    dest: '<%= root.dest %>'
                 },
-                'other-task': {
-                    /* (see example above for all options available) */
+                dir: {
+                    src: './',
+                    dest: './'
                 }
+                files: {
+                    src: './*'
+                    watch: './**/*'
+                }
+            },
+            'other-task': {
+                /* (see example above for all options available) */
             }
         }
     };
@@ -99,8 +93,18 @@ The `config.js` file must export a function that receives `gulputil.env` as uniq
 
 **Note**: You can add your own configuration settings and then access them on the `wires.config` property.
 
-To load a configuration object, you can either do it by running the `wire` function as show above, or by running the `loadConfig` method:
+You can use `gulp-util` to set environment specific configuration settings:
 
+    var env = require('gulp-util').env;
+    module.exports = {
+        root: {
+            dest: env.dev ? './build/dev/' : './build/prod/'
+        }
+    };
+
+You can load a configuration object either by passing it to the main function exported by `gulp-wire` (see 'Require and Setup' above), or by running the `loadConfig` method later on:
+
+    var wires = require('gulp-wires');
     wires.loadConfig( './build/config.js' );
 
 ## API
@@ -148,3 +152,23 @@ Returns the options set in the plugin's options file. Returns `{}` if the option
 `wires.plugin('plugin-name'[, options ])`
 
 Runs a gulp plugin (camelCases name). Uses options returned by `wires.options` by default, or custom options you pass. Throws an error if the options file does not exist.
+
+#### Plugin options modules
+
+The default options passed to your gulp-plugins by `gulp.plugin` can be set in a separate options module. Plugin option files are loaded from the path specified by `config.root.options`. Here is an example options file for `gulp-sass` (typically './build/options/sass.js');
+
+    module.exports = {
+        indentType: 'space',
+        indentWidth: 2,
+        outputStyle: 'expanded',
+        precision: 8,
+        sourceMap: true
+    };
+
+You can use `gulp-util` to set environment specific configuration settings:
+
+    var env = require('gulp-util').env;
+    module.exports = {
+        outputStyle: env.dev ? 'expanded' : 'compressed',
+        sourceMap: env.dev
+    };
