@@ -22,12 +22,33 @@ var loadPlugins = require('gulp-load-plugins');
 // ------
 // Module definition
 
-var wires = module.exports = function( config, imports ) {
-  // allow passing a filepath as config argument
-  if (typeof config == 'string') config = require(config);
+var wires = module.exports = function( config, options ) {
 
-  // parse configuration object and register config
-  this.setConfig(config, imports);
+  gutil.log('wires setup..');
+
+  // inject default options
+  this.options = _.merge({}, {
+    debug: false,
+    imports: {
+      _: _,
+      path: path
+    },
+    loadPlugins: {}
+  }, options || {});
+
+  // options shared with 'gulp-load-plugins'
+  if (this.options.loadPlugins.debug === undefined) {
+    this.options.loadPlugins.debug = this.options.debug;
+  }
+
+  // set  configuration
+  this.loadConfig(config, this.options.imports);
+
+  // load plugins
+  this.plugins = loadPlugins(this.options.loadPlugins);
+
+  // optionally load tasks
+  if (tasks) this.loadTasks(tasks);
 };
 
 // =Gutil
@@ -37,17 +58,6 @@ var wires = module.exports = function( config, imports ) {
 wires.util = gutil;
 wires.env = gutil.env;
 
-// =Setup
-// ------
-
-wires.setup = function(config, tasks) {
-  // set  configuration
-  this.loadConfig(config);
-
-  // optionally load tasks
-  if (tasks) this.loadTasks(tasks);
-};
-
 // =Config
 // -------
 // load configuration options and inject defaults
@@ -55,17 +65,17 @@ wires.setup = function(config, tasks) {
 // =loadConfig
 wires.loadConfig = function(config, imports) {
 
-  // default path to config file
+  // default config filepath
   if (!config) config = './build/config.js';
 
-  // allow passing a path to a config file
+  // allow passing a filepath as config
   if (typeof config == 'string') {
-    config = require(config)(env);
+    config = require(config);
   }
 
   // if resulting config is not an object
   if (typeof config !== object || Array.isArray(config)) {
-    // throw error: 'config must be an object, or a path to a node module that exports a function.'
+    // throw error: 'config must be an object, or a path to a node module that exports an object.'
   }
 
   // make modules available inside the config object's templates
@@ -391,9 +401,8 @@ var _original = {
 gulp.task = function(name, deps, fn) {
   // allow omitting the 'deps' argument
   if (!Array.isArray(deps)) {
-    var conf = this.config.tasks[task];
     fn = deps;
-    deps = conf && conf.deps ? conf.deps : [];
+    deps = [];
   }
 
   // load function from task file if no task function is provided
@@ -407,16 +416,25 @@ gulp.task = function(name, deps, fn) {
 };
 
 // =gulp.src
-gulp.src = function() {
-  return _original.src.apply(gulp, arguments);
+gulp.src = function(globs, options) {
+  // use 'wires.src' to replace task names with globs in config
+  globs = wires.src(files);
+
+  return _original.src.call(files, globs, options);
 };
 
 // =gulp.watch
-gulp.watch = function() {
-  return _original.watch.apply(gulp, arguments);
+gulp.watch = function(globs, options, handlers) {
+  // use 'wires.watch' to replace task names with globs in config
+  globs = wires.watch(files);
+
+  return _original.watch.apply(gulp, globs, options, handlers);
 };
 
 // =gulp.dest
-gulp.dest = function() {
-  return _original.dest.apply(gulp, arguments);
+gulp.dest = function(dir, options) {
+  // use 'wires.dest' to replace task names with path in config
+  dir = wires.dest(dir, options);
+
+  return _original.dest.apply(gulp, dir);
 };
