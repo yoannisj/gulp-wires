@@ -96,27 +96,27 @@ wires.loadConfig = function(config, imports) {
   return this.config;
 };
 
-// =Load
-// -----
-// load and cache files
+// =Load Helpers
+// -------------
+// helper functions to load and cache files
 
 var _cache = {
   options: {},
   tasks: {}
 };
 
-wires._getPath = function(type, name, filename) {
-  return path.join( this.config.root[type], filename || _.kebabCase(name) );
+var _getPath = function(type, name, filename) {
+  return path.join( wires.config.root[type], filename || _.kebabCase(name) );
 };
 
 // =_exists
 // - checks whether a given task/options file exists
-wires._exists = function(type, name, filename ) {
+var _exists = function(type, name, filename ) {
   // cached files/modules exist
   if (_cache[type].hasOwnProperty(name)) return true;
 
   // search for module's file
-  var filePath = wires._getPath(type, name, filename),
+  var filePath = _getPath(type, name, filename),
     file = globule.find(filePath, { cwd: __dirname });
 
   // if file exists
@@ -131,13 +131,13 @@ wires._exists = function(type, name, filename ) {
 
 // =_get
 // returns the value exported in a given task/options file
-wires._get = function( type, name, filename) {
+var _get = function( type, name, filename) {
   // return cached module
   if (_cache[type][name]) {
     return _cache[type][name];
   }
 
-  else if (!wires._exists(type, name, filename)) {
+  else if (!_exists(type, name, filename)) {
     return undefined;
   }
 
@@ -156,13 +156,13 @@ wires._get = function( type, name, filename) {
 // =hasTask
 // - returns whether a given task exists or not
 wires.hasTask = function( name, filename ) {
-  return wires._exists('tasks', name, filename);
+  return _exists('tasks', name, filename);
 };
 
 // =getTask
 // - returns a given task's function as defined in task file
 wires.getTask = function(name, filename) {
-  return wires._get('tasks', name, filename);
+  return _get('tasks', name, filename);
 };
 
 // =loadTasks
@@ -230,14 +230,14 @@ wires.loadTask = function(name, deps, filename) {
 // =hasOptions
 // - veifies if options are set for a given plugin
 wires.hasOptions = function(name, filename) {
-  return wires._exists('options', name, filename);
+  return _exists('options', name, filename);
 };
 
 // =loadOptions
 // - returns options for a given plugin as defined in options' file
 wires.getOptions = function(name, filename) {
   // default to an empty object
-  return wires._get('options', name, filename) || {};
+  return _get('options', name, filename) || {};
 };
 
 // =plugin
@@ -253,9 +253,44 @@ wires.plugin = function(name, options) {
   return plugins[name](options);
 };
 
-// =Paths and Globs
-// ----------------
-// get paths and globs from task configuration objects
+// =Globs helper
+// -------------
+
+// =_glob( target, glob )
+// - aliases task-names in a glob to corresponding globs in task's config
+_glob = function(target, glob) {
+  // allow array globs
+  if (Array.isArray(glob)) {
+    // apply to all items in the array glob
+    // - flatten because some task names might be aliased to nested array globs
+    globs = _.flatMap(glob, function(pattern) {
+      return wires.files(pattern);
+    });
+
+    // remove task names that aliased to undefined
+    globs = _.without(globs, undefined);
+
+    // return undefined if all task names resolved to undefined
+    return globs.length ? globs : undefined;
+  }
+
+  // leave plain globs intact
+  if (isGlob(glob)) {
+    return glob;
+  }
+
+  // alias to task path for existing tasks
+  if (wires.hasTask(glob)) {
+    return wires.files(glob, target);
+  }
+
+  // if neither glob nor existing task name
+  return undefined;
+};
+
+// =Paths
+// ------
+// get paths from task configuration objects
 
 var _dirs = {},
   _files = {};
@@ -323,54 +358,22 @@ wires.files = function(task, target) {
 
 // TODO: merge `wires._glob` with `wires.files`
 
-// =_glob( target, glob )
-// - aliases task-names in a glob to corresponding globs in task's config
-wires._glob = function(target, glob) {
-  // allow array globs
-  if (Array.isArray(glob)) {
-    // apply to all items in the array glob
-    // - flatten because some task names might be aliased to nested array globs
-    globs = _.flatMap(glob, function(pattern) {
-      return wires.files(pattern);
-    });
-
-    // remove task names that aliased to undefined
-    globs = _.without(globs, undefined);
-
-    // return undefined if all task names resolved to undefined
-    return globs.length ? globs : undefined;
-  }
-
-  // leave plain globs intact
-  if (isGlob(glob)) {
-    return glob;
-  }
-
-  // alias to task path for existing tasks
-  if (wires.hasTask(glob)) {
-    return wires.files(glob, target);
-  }
-
-  // if neither glob nor existing task name
-  return undefined;
-};
-
 // cfg.tasks['my-task'].src = '**/*.js'
 // cfg.tasks['my-other-task'].src = '**/*.coffee'
-// wires._glob('src', 'my-task'); => (see cfg || undefined)
-// wires._glob('src', ['my-task', '!**/*.spec.js']); => (see cfg || '!**/*.spec.js')
-// wires._glob('src', ['my-task', 'my-other-task']); => (see cfg || undefined)
-// wires._glob('src', '**/*.js'); => '**/*.js'
-// wires._glob('src', ['**/*.js', '!**/*.spec.js']); => ['**/*.js', '!**/*.spec.js']
+// _glob('src', 'my-task'); => (see cfg || undefined)
+// _glob('src', ['my-task', '!**/*.spec.js']); => (see cfg || '!**/*.spec.js')
+// _glob('src', ['my-task', 'my-other-task']); => (see cfg || undefined)
+// _glob('src', '**/*.js'); => '**/*.js'
+// _glob('src', ['**/*.js', '!**/*.spec.js']); => ['**/*.js', '!**/*.spec.js']
 
 // =src
 wires.src = function( patterns ) {
-  return wires._glob('src', patterns);
+  return _glob('src', patterns);
 };
 
 // =watch
 wires.watch = function( task ) {
-  return wires._glob('watch', patterns);
+  return _glob('watch', patterns);
 };
 
 // =Gulp
