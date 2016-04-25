@@ -26,21 +26,22 @@
   },
   "homepage": "https://github.com/yoannisj/gulp-wires#readme",
   "devDependencies": {
+    "color": "^0.11.1",
     "expander": "^0.3.3",
-    "gulp": "^3.9.0",
-    "gulp-jasmine": "^2.2.1",
+    "gulp-jasmine": "^2.3.0",
     "gulp-load-plugins": "^1.2.0",
     "gulp-util": "^3.0.7",
     "jasmine-reporters": "^2.1.1"
   },
   "dependencies": {
     "array-ify": "^1.0.0",
-    "globjoin": "^0.1.2",
-    "globule": "^0.2.0",
-    "gulp-load-plugins": "^1.2.0",
+    "globjoin": "^0.1.4",
+    "globule": "^1.0.0",
+    "gulp": "^3.9.1",
+    "gulp-load-plugins": "^1.2.2",
     "gulp-util": "^3.0.7",
     "is-glob": "^2.0.1",
-    "lodash": "^4.0.0",
+    "lodash": "^4.11.1",
     "strip-path": "^1.0.0"
   }
 }
