@@ -67,7 +67,6 @@ The configuration module must export a configuration object. Here is a sample co
         },
         tasks: {
             'task-name': {
-                deps: [],
                 root: {
                     src: '<%= root.src %>',
                     dest: '<%= root.dest %>'
