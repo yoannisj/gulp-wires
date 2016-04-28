@@ -8,7 +8,7 @@ module.exports = {
 
   // test imports
   capitalize: '<%= _.capitalize( foo ) %>',
-  join_paths: '<%= p.join("../some/joined/", "./dir/path") %>',
+  join_paths: '<%= path.join("../some/joined/", "./dir/path") %>',
 
   paths: {
     build: './tests/build/',
@@ -46,6 +46,22 @@ module.exports = {
 
     'wiz': {
       dir: './dirs/wiz'
+    },
+
+    'nested-src': {
+      files: ['**/*.txt', 'sass']
+    },
+
+    'nested-negated-src': {
+      dir: '<%= tasks.sass.dir.src %>',
+      files: ['**/*', '!sass']
+    },
+
+    'double-nested-src': {
+      dir: '<%= tasks.sass.dir.src %>',
+      files: {
+        src: ['**/*', "nested-src"]
+      }
     }
 
   }

@@ -45,7 +45,7 @@ Specify loaded task filenames
 
 Specify loaded task dependencies and filenames
 
-    wires('./build/config.js', {
+    wires.loadTasks({
         'my-task': {
             deps: ['my-other-task'],
             filename: './path/to/task-file.js'

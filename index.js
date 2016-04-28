@@ -18,6 +18,14 @@ var gulp = require('gulp');
 var gutil = require('gulp-util');
 var loadPlugins = require('gulp-load-plugins');
 
+// Todo: Handle errors
+// Todo: Throw Warnings if options.debug is set to true
+// Todo: implement 'filename' option
+// - accept 'kebab-case' and 'camel-case' keywords
+// - accept a function receiving the task name and returning the file name
+// Todo: Implement a 'data' method to share data through task functions
+// Todo: If config is given as filepath, use config's base path as default 'build' path
+
 // =Singleton Class
 // ----------------
 // Exports a function that returns a unique _instance
@@ -29,7 +37,7 @@ var wires = {};
 _isSetup = false;
 module.exports = function(config, options) {
 
-  // if called first time, set loadConfig
+  // if called first time, set up configuration and options
   if (!_isSetup || arguments.length) {
     _setup(config, options);
     _isSetup = true;
@@ -40,18 +48,16 @@ module.exports = function(config, options) {
 };
 
 // =setup
-// Todo: Handle errors
-// Todo: Throw Warnings if options.debug is set to true
-// Todo: implement 'filename' option
-// - accept 'kebab-case' and 'camel-case' keywords
-// - accept a function receiving the task name and returning the file name
-// Todo: Implement a 'data' method to share data through task functions
-// Todo: If config is given as filepath, use config's base path as default 'build' path
+// - injects default options
+// - loads configuration and tasks
+// - optionally monkey-patches gulp methods
+// @param config => path to configuration file or configuration hash
+// @param options => hash of options for 'gulp-wires'
 
-_setup = function(config, options) {
+function _setup(config, options) {
   // inject default options
   wires.options = _.merge({}, {
-    debug: false,
+    debug: !!(gutil.env.debug),
     imports: {},
     loadPlugins: {},
     monkeyPatch: true
@@ -62,16 +68,22 @@ _setup = function(config, options) {
     wires.options.loadPlugins.debug = wires.options.debug;
   }
 
-  // set  configuration
+  // load configuration
   wires.loadConfig(config, wires.options.imports);
 
   // load plugins
   wires.plugins = loadPlugins(wires.options.loadPlugins);
 
+  // monkey path gulp methods
   if (wires.options.monkeyPath) {
     monkeyPathGulp();
   }
-};
+
+  // load tasks
+  if (wires.options.autoload) {
+    wires.loadTasks();
+  }
+}
 
 // =Gutil
 // ------
@@ -79,7 +91,6 @@ _setup = function(config, options) {
 
 wires.util = gutil;
 wires.env = gutil.env;
-
 
 // =File-Loading Helpers
 // ---------------------
@@ -90,14 +101,25 @@ var _cache = {
   tasks: {}
 };
 
-// =_load
-// - laods a file given a path relative to the process cwd
-function _load( filePath ) {
-  return require( path.join(process.cwd(), filePath) );
+// =_loadFile
+// - loads a file given a path and optional context
+// @param filePath => path to the file to load
+// @param context => context for 'filePath', defaults to process.cwd()
+
+function _loadFile( filePath, context ) {
+  // default to process cwd as context
+  if (!context) context = process.cwd();
+
+  // return module exported by file
+  return require( path.join(context, filePath) );
 }
 
 // =_getPath
 // - returns the path for files of a given type
+// @param type => either 'task' or 'options'
+// @param name => the name of the 'task' or 'plugin' to get the function or options for
+// @param filename => the name of the file defining the task function or plugin options
+
 function _getPath(type, name, filename) {
   var filePath =  path.join( wires.config.paths[type], filename || _.kebabCase(name) );
 
@@ -107,6 +129,10 @@ function _getPath(type, name, filename) {
 
 // =_exists
 // - checks whether a given task/options file exists
+// @param type => either 'task' or 'options'
+// @param name => the name of the 'task' or 'plugin' for which to load config/options
+// @param filename => the name of the file exporting the task function or the options
+
 function _exists(type, name, filename ) {
   // cached files/modules exist
   if (_cache[type].hasOwnProperty(name)) return true;
@@ -123,6 +149,10 @@ function _exists(type, name, filename ) {
 
 // =_get
 // returns the value exported in a given task/options file
+// @param type => either 'task' or 'options'
+// @param name => the name of the 'task' or 'plugin' for which to load config/options
+// @param filename => the file exporting the wanted value
+
 function _get( type, name, filename) {
   // return cached module
   if (_cache[type][name]) {
@@ -136,27 +166,58 @@ function _get( type, name, filename) {
   }
 
   // load file
-  var res = _load( _getPath(type, name, filename) );
+  var res = _loadFile( _getPath(type, name, filename) );
 
   // cache and return result
   _cache[type][name] = res;
   return res;
 }
 
-// =Debug
-// ------
+// =Log
+// ----
 
-function _warn() {
-  // prefix warning message with 'Wires'
-  var segments = [gutil.colors.yellow('Wires')];
+var _logColors = {
+  'notice': 'white',
+  'warning': 'yellow',
+  'error': 'red'
+};
+
+// =_log
+// - logs a message to the command-line using 'gutil.log'
+//    and applies to correct color for the log message type
+// @param type => the type of message to log (either 'notice' or 'warning' or 'error')
+
+function _log(type) {
+  var color = _logColors[type],
+    colorize = gutil.colors[color],
+    // prefix message with 'Wires'
+    segments = [colorize('[Wires]')];
 
   // get warning segments and format them
-  _.forEach([].slice.apply(arguments), function(segment) {
-    segments.push( gutil.colors.yellow(segment) );
-  });
+  for (var i = 1, ln = arguments.length; i < ln; i++) {
+    segments.push(colorize(arguments[i]));
+  }
 
   // add 'Wires:' in front of warning
   gutil.log.apply(gutil, segments);
+}
+
+// =_warn
+// - logs a warning message in the console
+// @param messages.. => list of messages to log in the warning
+
+function _warn() {
+  _log('warning', arguments);
+}
+
+// =_warn
+// - throws an error in the console and exits the current process
+// @param code => exit code to use to exit the process
+// @param messages => error message to log in the console
+
+function _throw(code, message) {
+  _log('error', message);
+  process.exit(code);
 }
 
 // =Config
@@ -164,6 +225,11 @@ function _warn() {
 // load configuration options and inject defaults
 
 // =loadConfig
+// - loads a config file or hash
+// @param config => path to config file or hash of config options
+// @param imports => variables/modules that are available in the config's lodash templates
+//    - keys are variable names, values are values/functions
+
 wires.loadConfig = function(config, imports) {
 
   // default config filepath
@@ -171,7 +237,7 @@ wires.loadConfig = function(config, imports) {
 
   // allow passing a filepath as config
   if (typeof config == 'string') {
-    config = _load(config);
+    config = _loadFile(config);
   }
 
   // if resulting config is not an object
@@ -183,7 +249,7 @@ wires.loadConfig = function(config, imports) {
   // - inject default modules
   imports = _.assign({
     _: _,
-    p: path
+    path: path
   }, imports || {});
 
   // inject default configuration options
@@ -191,8 +257,8 @@ wires.loadConfig = function(config, imports) {
 
     paths: {
       build: './build',
-      tasks: '<%= p.join(paths.build, "./tasks") %>',
-      options: '<%= p.join(paths.build, "./options") %>',
+      tasks: '<%= path.join(paths.build, "./tasks") %>',
+      options: '<%= path.join(paths.build, "./options") %>',
       src: './src',
       dest: './dest'
     },
@@ -216,18 +282,31 @@ wires.loadConfig = function(config, imports) {
 
 // =hasTask
 // - returns whether a given task exists or not
+// @param name => the name of the task to check for
+// @param filename => the name of the file exporting the task function
+
 wires.hasTask = function( name, filename ) {
+  // accept tasks that are configured but miss a file defining their function
+  if (wires.config.tasks.hasOwnProperty(name)) {
+    return true;
+  }
+
   return _exists('tasks', name, filename);
 };
 
 // =getTask
 // - returns a given task's function as defined in task file
+// @param name => the name of the task to retreive
+// @param filename => the name of the file exporting the task function
+
 wires.getTask = function(name, filename) {
   return _get('tasks', name, filename);
 };
 
 // =loadTasks
 // - loads a set of tasks by registering it using `gulp.task`
+// @param tasks => an array of task names to load, or `true` to load all tasks
+
 wires.loadTasks = function(tasks) {
   // load all tasks found in the task folder by default
   // or when 'true' is passed
@@ -267,10 +346,17 @@ wires.loadTasks = function(tasks) {
 
 // =loadTask
 // - loads a given task by registering it using `gulp.task`.
+// @param name => the name of the task to load
+// @param deps => array of task-names to run before
+// @param filename => name of file exporting the task function
+
 wires.loadTask = function(name, deps, filename) {
+  // get task configuration
+  var conf = wires.getTaskConfig(name);
+
   // allow omitting the 'deps' argument
   if (!Array.isArray(deps)) {
-    var conf = wires.config.tasks[name];
+
     fn = deps;
     deps = conf && conf.deps ? conf.deps : [];
   }
@@ -283,6 +369,13 @@ wires.loadTask = function(name, deps, filename) {
 
   // register task through gulp
   gulp.task(name, deps, fn);
+
+  // automate watching files and run task on changes
+  // PROBLEM: reference other task's watch/src files..
+  // TODO: make this possible in task configuration
+  if (wires.env.watch) {
+    gulp.watch(wires.watchGlob(name), name);
+  }
 };
 
 // =Task Configuration
@@ -292,6 +385,8 @@ var _taskConfigs = {};
 
 // =getTaskConfig
 // - loads task configuration hash, normalizes it and populates with defaults
+// @param task => name of task fot witch to retreive configuration
+
 wires.getTaskConfig = function(task) {
 
   // get task options from global configuration
@@ -304,10 +399,6 @@ wires.getTaskConfig = function(task) {
 
   // get cached task configurations
   if (_taskConfigs.hasOwnProperty(task)) return _taskConfigs[task];
-
-  console.log('-----');
-  console.log(task, 'conf::', conf);
-  console.log('-----');
 
   // inject option defaults
   conf = _.assign({
@@ -342,7 +433,8 @@ wires.getTaskConfig = function(task) {
   }
 
   // split `files` option into 'src' and 'watch' targets
-  if (typeof conf.files == 'string') {
+  // - accept array of globs as value for files
+  if (typeof conf.files == 'string' || Array.isArray(conf.files)) {
     conf.files = {
       src: conf.files,
       watch: conf.files
@@ -358,13 +450,19 @@ wires.getTaskConfig = function(task) {
 // --------
 
 // =hasOptions
-// - veifies if options are set for a given plugin
+// - verifies if options are set for a given plugin
+// @param name => the name of the plugin for which to check the options
+// @param filename => the name of the file exporting the plugin options
+
 wires.hasOptions = function(name, filename) {
   return _exists('options', name, filename);
 };
 
 // =getOptions
 // - returns options for a given plugin as defined in options' file
+// @param name => the name of the plugin for which to retreive the options
+// @param filename => the name of the file exporting the plugin options to retreive
+
 wires.getOptions = function(name, filename) {
   // default to an empty object
   return _get('options', name, filename) || {};
@@ -372,37 +470,115 @@ wires.getOptions = function(name, filename) {
 
 // =plugin
 // - runs a given plugin with default options and returns the result
+// @param name => name of the plugin to run
+// @param options => [optional] options to pass to the plugin instead of defaults
+//    - can be a hash of options which will be merged into the defaults
+//    - or the name of a file exporting alternative options
+
 wires.plugin = function(name, options) {
   // use default options if none passed
   // or load options from file if filename is passed
   if (options === undefined || typeof options == 'string') {
-    options = wire.getOptions();
+    options = wires.getOptions(name, options);
+  }
+
+  // merge options into defaults
+  else if (typeof options == 'object') {
+    options = _.assign(wires.getOptions(name), options);
   }
 
   // invoke plugin and return result
   return plugins[name](options);
 };
 
-// =Globs helper
-// -------------
+// =Paths
+// ------
+// get paths from task configuration objects
 
-// cfg.tasks['my-task'].src = '**/*.js'
-// cfg.tasks['my-other-task'].src = '**/*.coffee'
-// _glob('src', 'my-task'); => (see cfg || undefined)
-// _glob('src', ['my-task', '!**/*.spec.js']); => (see cfg || '!**/*.spec.js')
-// _glob('src', ['my-task', 'my-other-task']); => (see cfg || undefined)
-// _glob('src', '**/*.js'); => '**/*.js'
-// _glob('src', ['**/*.js', '!**/*.spec.js']); => ['**/*.js', '!**/*.spec.js']
+var _paths = {};
 
-// =_glob( target, glob )
-// - aliases task-names in a glob to corresponding globs in task's config
-_glob = function(target, glob) {
-  // allow array globs
+// =path
+// - returns path to a task's base/dest directory
+// @param task => name of task for wich to return path
+// @param target => which path to retreive (either 'src'/'base'/'watch' or 'dest')
+
+wires.path = function( task, target ) {
+  // map 'base' and 'watch' targets to 'src' dirs
+  if (target == 'base' || target == 'watch') target = 'src';
+
+  // namespace for task and target
+  var ns = task + '_' + target;
+
+  // return cached directories
+  if (_paths.hasOwnProperty(ns)) return _paths[ns];
+
+  // get config options (with defaults for missing options)
+  var conf = wires.getTaskConfig(task);
+
+  // resolve directory path
+  var dirPath = path.join(conf.root[target], conf.dir[target]);
+
+  // cache and return directory path
+  _paths[ns] = dirPath;
+  return dirPath;
+};
+
+// =base
+// - returns the path to the task's src directory
+// @param task => name of task for wich to return src path
+
+wires.base = function( task ) {
+  return wires.path(task, 'base');
+};
+
+// =dest
+// - returns the path to the task's dest directory
+// @param task => name of task for wich to return dest path
+
+wires.dest = function( task ) {
+  return wires.path(task, 'dest');
+};
+
+// =Globs
+// ------
+
+// =_negateGlob
+// - negates a glob or array of globs
+// @param glob => glob to negate
+
+function _negateGlob(glob) {
+  // allow arrays of globs
+  if (Array.isArray(glob)) {
+    return _.map(glob, function(pattern) {
+      return _negateGlob(pattern);
+    });
+  }
+
+  return '!' + _.trimStart(glob, './!');
+};
+
+var _globs = {};
+
+// =_glob(glob, target, _base, _negate)
+// - dynamically build a glob, recognizes task names to include or ignore task files
+// @param glob = the glob or array of globs to parse
+// @param target = the task files to target, either 'src'/'main' or 'watch'
+// @param _base [internal] = whether to prepend the glob with a base path or not
+// @param _negate [internal] = wether to negate the glob or not
+
+function _glob(glob, target, _base, _negate) {
+  // make sure the 'target' argument was passed
+  if (target === undefined) _throw(9, 'called `wires.glob` without the `target` argument.');
+
+  // map the 'main' target to 'src' files
+  if (target == 'main') target = 'src';
+
+  // allow array of globs and/or task-names
   if (Array.isArray(glob)) {
     // apply to all items in the array glob
     // - flatten because some task names might be aliased to nested array globs
     var globs = _.flatMap(glob, function(pattern) {
-      return _glob(pattern);
+      return _glob(pattern, target, _base, _negate);
     });
 
     // remove task names that aliased to undefined
@@ -412,92 +588,106 @@ _glob = function(target, glob) {
     return globs.length ? globs : undefined;
   }
 
-  // leave plain globs intact
-  if (isGlob(glob)) {
+  // detect task-names and negated task-names
+  var isNegated = (glob.substr(0, 1) == '!'),
+    pattern = isNegated ? glob.substr(1) : glob,
+    isTask = (!isGlob(pattern) && wires.hasTask(pattern));
+
+  if (isTask) {
+    var task = pattern,
+      ns = task + '_' + target;
+
+    // separate namespace for negated task-names
+    if (isNegated) ns = ns + '_not';
+
+    // return cached task glob
+    if (_globs.hasOwnProperty(ns)) return _globs[ns];
+
+    var taskConf = wires.getTaskConfig(task),
+      base = wires.path(task, 'base');
+
+    // console.log(task, 'config', taskConf);
+
+    // could be an array, should not have any task-names
+    glob = _glob(taskConf.files[target], target, base, isNegated);
+
+    // cache task glob
+    _globs[ns] = glob;
     return glob;
   }
 
-  // alias to task path for existing tasks
-  if (wires.hasTask(glob)) {
-    return wires.files(glob, target);
+  if (!isGlob(glob)) {
+    return undefined;
   }
 
-  // if neither glob nor existing task name
-  return undefined;
+  // join base
+  if (_base) glob = globjoin(_base, glob);
+
+  // negate
+  if (_negate) glob = _negateGlob(glob);
+
+  return glob;
+}
+
+// =glob(glob, target)
+// - builds a glob by replacing task-names with globs corresponding to config
+// @param glob = the glob or array of globs to parse
+// @param target = the task files to target, either 'src'/'main' or 'watch'
+
+wires.glob = function(glob, target) {
+  return _glob(glob, target);
 };
 
-// =Paths
+// =srcGlob(glob)
+// - builds a glob by replacing task-names with globs for their main files
+// @param glob = the glob or array of globs to parse
+
+wires.mainGlob = function(glob) {
+  return wires.glob(glob, 'src');
+};
+
+// =watchGlob(glob)
+// - builds a glob by replacing task-names with globs for their watch files
+// @param glob = the glob or array of globs to parse
+
+wires.watchGlob = function(glob) {
+  return wires.glob(glob, 'watch');
+};
+
+// =Files
 // ------
-// get paths from task configuration objects
 
-var _dirs = {},
-  _files = {};
-
-// =dir
-// - returns path to a task's base/dest directory
-wires.dir = function( task, target ) {
-  // map 'base' and 'watch' targets to 'src' dirs
-  if (target == 'base' || target == 'watch') target = 'src';
-
-  // namespace for task and target
-  var ns = task + '_' + target;
-
-  // return cached directories
-  if (_dirs.hasOwnProperty(ns)) return _dirs[ns];
-
-  // get config options (with defaults for missing options)
-  var conf = wires.getTaskConfig(task);
-
-  // resolve directory path
-  var dirPath = path.join(conf.root[target], conf.dir[target]);
-
-  // cache and return directory path
-  _dirs[ns] = dirPath;
-  return dirPath;
-};
-
-// =base
-wires.base = function( task ) {
-  return wires.dir(task, 'base');
-};
-
-// =dest
-wires.dest = function( task ) {
-  return wires.dir(task, 'dest');
-};
+var _files = {};
 
 // =files
-// - returns glob for a taks's src/watch files
-wires.files = function(task, target) {
-  // TODO: merge `_glob()` with `wires.files()` ?
+// get files corresponding to given glob
+// - detects task-names and replaces them with glob correspondig to config
+// @param glob = the glob or array of globs to parse
+// @param target = the task files to target, either 'src'/'main' or 'watch'
 
-  // namespace for task and target
-  var ns = task + '_' + target;
+wires.files = function(glob, target) {
+  // parse glob to detect and replace task-names
+  glob = wires.glob(glob, target);
 
-  // returned cached file paths
-  if (_files.hasOwnProperty(ns)) return _files[ns];
-
-  // get config options and defaults if missing
-  var conf = wires.getTaskConfig(task);
-
-  // console.log(task, target, 'base', wires.dir(task, 'src'));
-  // console.log(task, target, 'files::', conf.files[target]);
-
-  // resolve files path (allow to set files as an array glob)
-  var files = globjoin(wires.dir(task, 'src'), conf.files[target]);
-
-  // cache and return files path
-  _files[ns] = files;
-  return files;
+  // return an array of files that correspond to the glob
+  return globule.find(glob);
 };
 
-// =src
-wires.src = function( task ) {
+// =mainFiles
+// get main files corresponding to given glob
+// - detects task-names and replaces them with glob for their main files
+// @param glob = the glob or array of globs to parse
+
+wires.mainFiles = function( task ) {
   return wires.files(task, 'src');
 };
 
-// =watch
-wires.watch = function( task ) {
+// =watchFiles
+// get main files corresponding to given glob
+// - detects task-names and replaces them with glob for their watch files
+// @param glob = the glob or array of globs to parse
+
+wires.watchFiles = function( task ) {
   return wires.files(task, 'watch');
 };
 
