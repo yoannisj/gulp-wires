@@ -49,17 +49,12 @@ var _isSetup = false,
   _getKeyname,
   _defaults = {
 
-    // make basic modules available in config's lodash templates
-    imports: {
-      '_': _,
-      'path': path,
-      'env': wires.env
-    },
-
     tasksPath: './tasks',
     optionsPath: './options',
 
     filename: 'kebab-case',
+
+    keyname: 'kebab-case',
 
     debug: wires.env.debug,
 
@@ -93,14 +88,14 @@ module.exports = function(config) {
     _isSetup = true;
 
     // load configuration
-    wires.loadConfig(config, wires.options.imports);
+    wires.loadConfig(config);
 
     // load plugins
-    wires.plugins = loadPlugins(wires.options.loadPlugins);
+    wires.plugins = loadPlugins(wires.config.loadPlugins);
 
     // monkey path gulp methods
-    if (wires.config.monkeyPath) {
-      monkeyPathGulp();
+    if (wires.config.monkeyPatch) {
+      _monkeyPatchGulp();
     }
 
     // load tasks
@@ -140,7 +135,7 @@ wires.loadConfig = function(config) {
   }
 
   // inject default configuration options
-  config = _.merge(_defaults, config);
+  config = _.merge(_defaults, config || {});
 
   // get default buildPath
   if (!config.buildPath)
@@ -162,21 +157,33 @@ wires.loadConfig = function(config) {
   }
 
   // get filename transform function
-  var filenameTransform = _getTransformFunction(config.filename);
-  if (!fileNameTransform) {
+  _getFilename = _getTransformFunction(config.filename);
+  if (!_getFilename) {
     _throw(9, '`filename` setting must be either "kebab-case", "camel-case", "snake-case" or a function.');
   }
 
   // get keyname transform function
-  var keynameTransform = _getTransformFunction(config.keyname);
-  if (!keynameTransform) {
+  _getKeyname = _getTransformFunction(config.keyname);
+  if (!_getKeyname) {
     _throw(9, '`keyname` setting must be either "kebab-case", "camel-case", "snake-case" or a function.');
   }
 
+  // temporarily delete 'imports' from config for expander to work correctly
+  var imports = _.clone(config.imports);
+  delete config.imports;
+
   // expand and store configuration object
   wires.config = expander.interface(config, {
-    imports: config.imports
+    // make base modules available in config templates
+    imports: _.assign({
+      '_': _,
+      'path': path,
+      'env': wires.env
+    }, imports || {})
   })();
+
+  // restore imports setting
+  wires.config.imports = imports;
 
   // chaining
   return wires;
@@ -263,7 +270,7 @@ function _throw(code, message) {
 
 var _cache = {
   options: {},
-  tasks: {}
+  task: {}
 };
 
 // =_load
@@ -318,7 +325,7 @@ function _exists(type, name, filename ) {
   // search for module's file
   var filePath = _getPath(type, name, filename),
     file = globule.find(filePath, {
-      cwd: wires.config.context
+      cwd: wires.config.buildPath
     });
 
   // return whether file was found or not
@@ -333,7 +340,7 @@ function _exists(type, name, filename ) {
 
 function _get( type, name, filename) {
   // return cached module
-  if (_cache[type][name]) return _cache[type][name];
+  if (_cache[type].hasOwnProperty(name)) return _cache[type][name];
 
   else if (!_exists(type, name, filename)) {
     // Todo: throw warning if options.debug = true
@@ -348,6 +355,73 @@ function _get( type, name, filename) {
   _cache[type][name] = res;
   return res;
 }
+
+// =Task Configuration
+// -------------------
+
+var _taskConfigs = {};
+
+// =getTaskConfig
+// - loads task configuration hash, normalizes it and populates with defaults
+// @param task => name of task fot witch to retreive configuration
+
+wires.getTaskConfig = function(task) {
+  // get task options from global configuration
+  var conf = wires.config.tasks[task];
+
+  // throw warning in debug mode if no options are defined and task file does not exist
+  if (wires.config.debug && !conf && !wires.hasTask(task)) {
+    _warn('getTaskConfig(): could not find the task "' + task + '".');
+  }
+
+  // get cached task configurations
+  if (_taskConfigs.hasOwnProperty(task)) return _taskConfigs[task];
+
+  // inject option defaults
+  conf = _.assign({
+    root: {
+      src: wires.config.root.src,
+      dest: wires.config.root.dest
+    },
+    dir: {
+      src: './',
+      dest: './'
+    },
+    files: {
+      src: '**/*',
+      watch: '**/*'
+    }
+  }, conf || {});
+
+  // split `root` option into 'src' and 'dest' targets
+  if (typeof conf.root == 'string') {
+    conf.root = {
+      src: conf.root,
+      dest: conf.root
+    };
+  }
+
+  // split `dir` option into 'src' and 'dest' targets
+  if (typeof conf.dir == 'string') {
+    conf.dir = {
+      src: conf.dir,
+      dest: conf.dir
+    };
+  }
+
+  // split `files` option into 'src' and 'watch' targets
+  // - accept array of globs as value for files
+  if (typeof conf.files == 'string' || Array.isArray(conf.files)) {
+    conf.files = {
+      src: conf.files,
+      watch: conf.files
+    };
+  }
+
+  // cache task configuration and return it
+  _taskConfigs[task] = conf;
+  return conf;
+};
 
 // =Tasks
 // ------
@@ -414,16 +488,16 @@ wires.loadTasks = function(tasks) {
   // or when 'true' is passed
   if (!tasks || tasks === true) {
     // get absolute path to tasks directory
-    var tasksDir = path.isAbsolute(tasksPath) ? tasksPath :
-      path.join(wires.config.buildPath, tasksPath);
+    var tasksPath = path.isAbsolute(wires.config.tasksPath) ? wires.config.tasksPath :
+      path.join(wires.config.buildPath, wires.config.tasksPath);
 
     // set 'tasks' to an array of task filenames
     // TODO: allow sub-tasks in sub-folders
     // => need to replace _.camelCase and _.kebabCase so '/' is mapped to ':'
     tasks = globule.find('*.js', {
-      cwd: tasksDir
+      cwd: tasksPath
     }).map(function(file) {
-      return _getKeyname( path.basename(file) );
+      return _getKeyname( path.basename(file, path.extname(file)) );
     });
   }
 
@@ -450,74 +524,6 @@ wires.loadTasks = function(tasks) {
       }
     }
   }
-};
-
-// =Task Configuration
-// -------------------
-
-var _taskConfigs = {};
-
-// =getTaskConfig
-// - loads task configuration hash, normalizes it and populates with defaults
-// @param task => name of task fot witch to retreive configuration
-
-wires.getTaskConfig = function(task) {
-
-  // get task options from global configuration
-  var conf = wires.config.tasks[task];
-
-  // throw warning in debug mode if no options are defined and task file does not exist
-  if (wires.options.debug && !conf && !wires.hasTask(task)) {
-    _warn('getTaskConfig(): could not find the task "' + task + '".');
-  }
-
-  // get cached task configurations
-  if (_taskConfigs.hasOwnProperty(task)) return _taskConfigs[task];
-
-  // inject option defaults
-  conf = _.assign({
-    root: {
-      src: wires.config.paths.src,
-      dest: wires.config.paths.dest
-    },
-    dir: {
-      src: './',
-      dest: './'
-    },
-    files: {
-      src: '**/*',
-      watch: '**/*'
-    }
-  }, wires.config.tasks[task] || {});
-
-  // split `root` option into 'src' and 'dest' targets
-  if (typeof conf.root == 'string') {
-    conf.root = {
-      src: conf.root,
-      dest: conf.root
-    };
-  }
-
-  // split `dir` option into 'src' and 'dest' targets
-  if (typeof conf.dir == 'string') {
-    conf.dir = {
-      src: conf.dir,
-      dest: conf.dir
-    };
-  }
-
-  // split `files` option into 'src' and 'watch' targets
-  // - accept array of globs as value for files
-  if (typeof conf.files == 'string' || Array.isArray(conf.files)) {
-    conf.files = {
-      src: conf.files,
-      watch: conf.files
-    };
-  }
-
-  // cache task configuration and return it
-  _taskConfigs[task] = conf;
-  return conf;
 };
 
 // =Plugins
@@ -689,8 +695,6 @@ function _glob(glob, target, _base, _negate) {
     var taskConf = wires.getTaskConfig(task),
       base = wires.path(task, 'base');
 
-    // console.log(task, 'config', taskConf);
-
     // could be an array, should not have any task-names
     glob = _glob(taskConf.files[target], target, base, isNegated);
 
@@ -779,9 +783,17 @@ wires.watchFiles = function( task ) {
 
 // =Gulp
 // -----
-// monkey patch gulp methods
 
-function monkeyPath() {
+var _gulpIsMonkeyPatched = false;
+
+// =_monkeyPatchGulp
+// - monkey patch gulp methods
+
+function _monkeyPatchGulp() {
+  // only monkey patch once!
+  if (_gulpIsMonkeyPatched) return;
+  _gulpIsMonkeyPatched = true;
+
   // store reference to original gulp methods
   var _gulpAPI = {
     task: gulp.task,
@@ -795,7 +807,7 @@ function monkeyPath() {
     // allow omitting the 'deps' argument
     if (!Array.isArray(deps)) {
       fn = deps;
-      deps = [];
+      deps = wires.getTaskConfig(name).deps || [];
     }
 
     // load function from task file if no task function is provided
@@ -805,30 +817,30 @@ function monkeyPath() {
     }
 
     // delegate to original `gulp.task` method
-    return _gulpAPI.task(name, deps, fn );
+    return _gulpAPI.task.call(gulp, name, deps, fn);
   };
 
   // =gulp.src
   gulp.src = function(globs, options) {
-    // use '_instance.src' to replace task names with globs in config
-    globs = _instance.src(files);
+    // use 'wires.src' to replace task names with globs in config
+    globs = wires.srcGlob(globs);
 
-    return _gulpAPI.src.call(files, globs, options);
+    return _gulpAPI.src.call(gulp, globs, options);
   };
 
   // =gulp.watch
   gulp.watch = function(globs, options, handlers) {
     // use 'wires.watch' to replace task names with globs in config
-    globs = _instance.watch(files);
+    globs = wires.watchGlob(globs);
 
-    return _gulpAPI.watch.apply(gulp, globs, options, handlers);
+    return _gulpAPI.watch.call(gulp, globs, options, handlers);
   };
 
   // =gulp.dest
-  gulp.dest = function(dir, options) {
+  gulp.dest = function(path, options) {
     // use 'wires.dest' to replace task names with path in config
-    dir = _instance.dest(dir, options);
+    path = wires.destPath(path, options);
 
-    return _gulpAPI.dest.apply(gulp, dir);
+    return _gulpAPI.dest.call(gulp, path);
   };
 }

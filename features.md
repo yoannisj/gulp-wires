@@ -110,9 +110,11 @@ The configuration object may contain lodash templates to cross-reference setting
         buildPath: __dirname,
         
         // path to the tasks folder
+        // relative to `buildPath`
         tasksPath: "./tasks",
         
         // path to the options folder
+        // relative to `buildPath`
         optionsPath: "./options",
         
         // how task and option files are named
@@ -144,9 +146,10 @@ The configuration object may contain lodash templates to cross-reference setting
         },
         
         // default base path for tasks' source and destination directories
+        // relative to `process.cwd()`
         root: {
-            src: '<%= path.join(process.cwd(), "./src"); %>',
-            dest: '<%= path.join(process.cwd(), "./dest"); %>',
+            src: './src',
+            dest: './dest',
         },
         
         // configuration settings for tasks inside the tasks folder

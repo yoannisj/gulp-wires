@@ -1,14 +1,22 @@
+var path = require('path');
+var _ = require('lodash');
+var gutil = require('gulp-util');
+
 module.exports = {
 
   imports: {
     'buildPath': __dirname,
-    'path': require('path'),
-    '_': require('lodash'),
-    'env': require('gulp-util').env
+    'path': path,
+    '_': _,
+    'env': gutil.env
   },
 
-  debug: '<%= env.debug; %>',
+  root: {
+    src: './tests/src',
+    dest: './tests/dest'
+  },
 
+  debug: '<%= env.debug %>',
 
   // test custom settings and expanding
   foo: 'bar',
@@ -19,9 +27,6 @@ module.exports = {
   join_paths: '<%= path.join("../some/joined/", "./dir/path") %>',
 
   paths: {
-    build: './build/',
-    src: './src',
-    dest: './dest',
     bar: './some/path'
   },
 
