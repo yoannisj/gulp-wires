@@ -43,9 +43,13 @@
     wires.mainGlob(['**/*.txt', 'task-name']);
     wires.mainGlob(['**/*.txt', '!task-name']);
 
+    wires.main('task-name'); // @alias wires.glob('task-name', 'main');
+
     wires.watchGlob('task-name'); // @alias wires.glob('task-name', 'watch');
     wires.watchGlob(['**/*.txt', 'task-name']);
     wires.watchGlob(['**/*.txt', '!task-name']);
+
+    wires.watch('task-name'); // @alias wires.glob('task-name', 'watch');
 
     wires.files('task-name', target);
     wires.mainFiles('task-name'); // @alias wires.files('task-name', 'main');
@@ -89,55 +93,81 @@ The configuration object may contain lodash templates to cross-reference setting
 ### Default Configuration:
 
     {
-        paths: {
-            build: './build',
-            tasks: '<%= path.join(paths.build, "./tasks") %>',
-            options: '<%= path.join(paths.build, "./options") %>',
-            src: './src',
-            dest: './dest'
+        // modules/globals that are accessible inside lodash templates
+        // inside this configuration object. Keys are the variables names
+        // used to reference the modules/globals inside lodash templates.
+        // Note that these defaults will always be imported. If you redefine
+        // the `imports` setting below, it will merge your imports to it,
+        // so that `path`, `_` and `env` are always available.
+        imports: {
+            'path': require('path'),
+            '_': require('lodash'),
+            'env': require('gulp-util').env
         },
-                
-        tasks: {}
-    }
-
-    {        
-        options: {
-            pluginsPath: './node_modules',
-            pluginsPattern: 'gulp-*',
-            buildPath: './build',
-            optionsPath: '<%= options.buildPath %>/options',
-            tasksPath: '<%= options.buildPath %>/tasks'
-        }
         
+        // base path for `tasksPath` and `optionsPath` settings
+        // will be normalized to an absolute path
+        buildPath: __dirname,
+        
+        // path to the tasks folder
+        tasksPath: "./tasks",
+        
+        // path to the options folder
+        optionsPath: "./options",
+        
+        // how task and option files are named
+        // - 'kebab-case' => runs the task/plugin name through `_.kebabCase()`
+        // - 'camel-case' => runs the task/plugin name through `_.camelCase()`
+        // - 'snake-case' => runs the task/plugin name through `_.snakeCase()`
+        // - {function} => accepts task/plugin name and returns the file name
+        filename: 'kebab-case',
+        
+        // how to transform task and option filenames to their names as
+        // referenced in config and API.
+        keyname: 'kebab-case',
+        
+        // how task and options are named in config and API
+        keyname: 'kebab-case',
+        
+        // activate debug mode to show warnings and notices
+        debug: '<%= env.debug %>',
+        
+        // whether to monkey path the gulp api methods or not
+        monkeyPath: true,
+        
+        // whether to automatically load all tasks in the tasks folder
+        loadTasks: true,
+        
+        // options passed to 'gulp-load-plugins'
+        loadPlugins: {
+            debug: '<%= debug %>'
+        },
+        
+        // default base path for tasks' source and destination directories
         root: {
-            src: './src',
-            dest: './dest'
+            src: '<%= path.join(process.cwd(), "./src"); %>',
+            dest: '<%= path.join(process.cwd(), "./dest"); %>',
         },
         
-        tasks: {}
-    }
-
-    {
-        paths: {
-            src: './',
-            dest: './',
-            plugins: './node_modules',
-            build: './build',
-            options: '<%= paths.build %>/options',
-            tasks: '<%= paths.build %>/tasks',
-        },
-        
+        // configuration settings for tasks inside the tasks folder
+        // Keys are used to reference tasks in wires' API
         tasks: {}
     }
 
 ## Configuring Tasks
 
-### Default configuration:
+Tasks are configured via wires global `tasks` configuration setting. This is a hash, where each key/value pair defines a task's name/settings.
+
+### Default task settings:
+
+If no configuration settings are defined for a given task, it will use the following defaults:
 
     {
+        // override the root setting, used as base path for the task's
+        // base and dest directories
         root: {
-            src: '<%= paths.src  %>',
-            dest: '<%= paths.dest %>'
+            src: '<%= root.src  %>',
+            dest: '<%= root.dest %>'
         },
         dir: {
             src: './',
@@ -152,12 +182,20 @@ The configuration object may contain lodash templates to cross-reference setting
 
 ### Compact configuration:
 
-No need to give a `root` setting, it has defaults.
-The `dir` setting can be given as a simple string, which will be mapped to both `dir.src` **and** `dir.dest`.
-The `files` setting can be given as a simple string, which will be mapped to `files.main` **and** `files.watch`.
+Wires defaults and normalizes task settings, so you don't have to be that prosaic when writing them:
 
-    {
+* No need to give a `root` setting, it defaults to wires' global `root` setting
+* The `dir` setting can be given as a simple string, which will be mapped to both `dir.src` **and** `dir.dest`
+* The `files` setting can be given as a simple string, which will be mapped to `files.main` **and** `files.watch`
+
+This means you can write minimal task settings like this:
+
+    'my-task': {
         dir: './',
-        files: './**/*'
+        files: './**/*.js'
+    },
+    
+    'my-other-task': {
+        files: './**/*.txt'
     }
 
