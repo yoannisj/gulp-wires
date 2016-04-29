@@ -1,6 +1,14 @@
-var gutil = require('gulp-util');
-
 module.exports = {
+
+  imports: {
+    'buildPath': __dirname,
+    'path': require('path'),
+    '_': require('lodash'),
+    'env': require('gulp-util').env
+  },
+
+  debug: '<%= env.debug; %>',
+
 
   // test custom settings and expanding
   foo: 'bar',

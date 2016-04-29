@@ -29,65 +29,7 @@ var loadPlugins = require('gulp-load-plugins');
 // ¿ Todo: rename 'files.src' to 'files.main' ?
 // ¿ Todo: rename 'dir.src' to 'dir.base' ?
 
-// =Singleton Class
-// ----------------
-// Exports a function that returns a unique _instance
-// of the helper class (singleton/pseudo static class)
-
 var wires = {};
-
-// exported function to get static helper object
-_isSetup = false;
-module.exports = function(config, options) {
-
-  // if called first time, set up configuration and options
-  if (!_isSetup || (arguments.length && config)) {
-    _setup(config, options);
-    _isSetup = true;
-  }
-
-  // return static helper object
-  return wires;
-};
-
-// =setup
-// - injects default options
-// - loads configuration and tasks
-// - optionally monkey-patches gulp methods
-// @param config => path to configuration file or configuration hash
-// @param options => hash of options for 'gulp-wires'
-
-function _setup(config, options) {
-  // inject default options
-  wires.options = _.merge({}, {
-    context: process.cwd(),
-    debug: !!(gutil.env.debug),
-    imports: {},
-    loadPlugins: {},
-    monkeyPatch: true
-  }, options || {});
-
-  // options shared with 'gulp-load-plugins'
-  if (wires.options.loadPlugins.debug === undefined) {
-    wires.options.loadPlugins.debug = wires.options.debug;
-  }
-
-  // load configuration
-  wires.loadConfig(config, wires.options.imports);
-
-  // load plugins
-  wires.plugins = loadPlugins(wires.options.loadPlugins);
-
-  // monkey path gulp methods
-  if (wires.options.monkeyPath) {
-    monkeyPathGulp();
-  }
-
-  // load tasks
-  if (wires.options.autoload) {
-    wires.loadTasks();
-  }
-}
 
 // =Gutil
 // ------
@@ -96,89 +38,180 @@ function _setup(config, options) {
 wires.util = gutil;
 wires.env = gutil.env;
 
-// =File-Loading Helpers
-// ---------------------
-// helper functions to load and cache files
+// =Singleton Class & Config
+// -------------------------
+// Exports a function that returns a unique _instance
+// of the helper class (singleton/pseudo static class)
 
-var _cache = {
-  options: {},
-  tasks: {}
+var _isSetup = false,
+  _latestConfig,
+  _getFilename,
+  _getKeyname,
+  _defaults = {
+
+    // make basic modules available in config's lodash templates
+    imports: {
+      '_': _,
+      'path': path,
+      'env': wires.env
+    },
+
+    tasksPath: './tasks',
+    optionsPath: './options',
+
+    filename: 'kebab-case',
+
+    debug: wires.env.debug,
+
+    monkeyPatch: true,
+
+    loadTasks: true,
+
+    loadPlugins: {
+      debug: '<%= debug %>'
+    },
+
+    root: {
+      src: './src',
+      dest: './dest'
+    },
+
+    tasks: {}
+
+  };
+
+// =main
+// - injects default options
+// - loads configuration and tasks
+// - optionally monkey-patches gulp methods
+// - returns static `wires` API object
+// @param config => path to configuration file or configuration hash
+
+module.exports = function(config) {
+  // if called first time, set up configuration
+  if (!_isSetup || (config && _latestConfig != config)) {
+    _isSetup = true;
+
+    // load configuration
+    wires.loadConfig(config, wires.options.imports);
+
+    // load plugins
+    wires.plugins = loadPlugins(wires.options.loadPlugins);
+
+    // monkey path gulp methods
+    if (wires.config.monkeyPath) {
+      monkeyPathGulp();
+    }
+
+    // load tasks
+    if (wires.config.loadTasks) {
+      wires.loadTasks();
+    }
+  }
+
+  // return static helper object
+  return wires;
 };
 
-// =_loadFile
-// - loads a file given a path and the config's context (defaults to 'process.cwd()');
-// @param filePath => path to the file to load
-// @param context => [optional] the context to use for 'require'
+// =loadConfig
+// - loads a config file or hash
+// @param config => path to config file or hash of config options
+// @param imports => variables/modules that are available in the config's lodash templates
+//    - keys are variable names, values are values/functions
 
-function _loadFile( filePath, context ) {
-  // default to options.context or process.cwd() as context
-  if (!context) context = wires.options.context;
+wires.loadConfig = function(config) {
+  // default config filepath
+  if (!config) config = './build/config.js';
 
-  // return module exported by file
-  return require( path.join(context, filePath) );
-}
+  // store reference to latest config that was loaded.
+  // This way, running loadConfig() with the same argument
+  // twice in a row won't do the job twice
+  _latestConfig = config;
 
-// =_getPath
-// - returns the path for files of a given type
-// @param type => either 'task' or 'options'
-// @param name => the name of the 'task' or 'plugin' to get the function or options for
-// @param filename => the name of the file defining the task function or plugin options
-
-function _getPath(type, name, filename) {
-  var filePath =  path.join( wires.config.paths[type], filename || _.kebabCase(name) );
-
-  // add file extension
-  return _.endsWith(filePath, '.js') ? filePath : filePath + '.js';
-}
-
-// =_exists
-// - checks whether a given task/options file exists
-// @param type => either 'task' or 'options'
-// @param name => the name of the 'task' or 'plugin' for which to load config/options
-// @param filename => the name of the file exporting the task function or the options
-
-function _exists(type, name, filename ) {
-  // cached files/modules exist
-  if (_cache[type].hasOwnProperty(name)) return true;
-
-  // search for module's file
-  var filePath = _getPath(type, name, filename),
-    file = globule.find(filePath, {
-      cwd: wires.options.context
-    });
-
-  // return whether file was found or not
-  return !!(file.length);
-}
-
-// =_get
-// returns the value exported in a given task/options file
-// @param type => either 'task' or 'options'
-// @param name => the name of the 'task' or 'plugin' for which to load config/options
-// @param filename => the file exporting the wanted value
-
-function _get( type, name, filename) {
-  // return cached module
-  if (_cache[type][name]) {
-    return _cache[type][name];
+  // allow passing a filepath as config
+  if (typeof config == 'string') {
+    config = require(path.join(process.cwd(), config));
   }
 
-  else if (!_exists(type, name, filename)) {
-    // Todo: throw warning if options.debug = true
-    //  OR throw an error (not interesting as a feature to fail silently..)
-    return undefined;
+  // if resulting config is not an object
+  if (typeof config !== 'object' || Array.isArray(config)) {
+    // throw error: 'config must be an object, or a path to a node module that exports an object.'
+    _throw(9, 'argument `config` must be a path to a config module, or a hash of configuration settings.');
   }
 
-  // load file
-  var res = _loadFile( _getPath(type, name, filename) );
+  // inject default configuration options
+  config = _.merge(_defaults, config);
 
-  // cache and return result
-  _cache[type][name] = res;
-  return res;
+  // get default buildPath
+  if (!config.buildPath)
+  {
+    // get config path's dirname
+    if (typeof _latestConfig == 'string') {
+      config.buildPath = path.dirname(_latestConfig);
+    }
+
+    // or default to process's cwd
+    else {
+      config.buildPath = process.cwd();
+    }
+  }
+
+  // make sure buildPath is an absolute path
+  if (!path.isAbsolute(config.buildPath)) {
+    config.buildPath = path.join(process.cwd(), config.buildPath);
+  }
+
+  // get filename transform function
+  var filenameTransform = _getTransformFunction(config.filename);
+  if (!fileNameTransform) {
+    _throw(9, '`filename` setting must be either "kebab-case", "camel-case", "snake-case" or a function.');
+  }
+
+  // get keyname transform function
+  var keynameTransform = _getTransformFunction(config.keyname);
+  if (!keynameTransform) {
+    _throw(9, '`keyname` setting must be either "kebab-case", "camel-case", "snake-case" or a function.');
+  }
+
+  // expand and store configuration object
+  wires.config = expander.interface(config, {
+    imports: config.imports
+  })();
+
+  // chaining
+  return wires;
+};
+
+// =_getTransformFunction
+// - helper to get the correct string transformation function for keynames/filenames
+//  @param transform => the transform setting (either, 'kebab-case', 'camel-case' or a function)
+
+function _getTransformFunction(transform) {
+  // allow the 'kebab-case' keyword
+  if (transform == 'kebab-case') {
+    return _.kebabCase;
+  }
+
+  // allow the 'camel-case' keyword
+  if (transform == 'camel-case') {
+    return _.camelCase;
+  }
+
+  if (transform == 'snake-case') {
+    return _.snakeCase;
+  }
+
+  // allow setting transform as a function
+  if (typeof transform == 'function') {
+    return transform;
+  }
+
+  return undefined;
 }
 
 // =Log
 // ----
+// helper functions to log notices/warnings/errors to the CLI
 
 var _logColors = {
   'notice': 'white',
@@ -224,65 +257,101 @@ function _throw(code, message) {
   process.exit(code);
 }
 
-// =Config
-// -------
-// load configuration options and inject defaults
+// =Module-Loading Helpers
+// -----------------------
+// helper functions to load and cache task/options files
 
-// =loadConfig
-// - loads a config file or hash
-// @param config => path to config file or hash of config options
-// @param imports => variables/modules that are available in the config's lodash templates
-//    - keys are variable names, values are values/functions
-
-wires.loadConfig = function(config, imports) {
-
-  // default config filepath
-  if (!config) config = './build/config.js';
-
-  // allow passing a filepath as config
-  if (typeof config == 'string') {
-    config = _loadFile(config);
-  }
-
-  // if resulting config is not an object
-  if (typeof config !== 'object' || Array.isArray(config)) {
-    // throw error: 'config must be an object, or a path to a node module that exports an object.'
-  }
-
-  // make modules available inside the config object's templates
-  // - inject default modules
-  imports = _.assign({
-    _: _,
-    path: path
-  }, imports || {});
-
-  // inject default configuration options
-  config = _.merge({
-
-    paths: {
-      build: './build',
-      tasks: '<%= path.join(paths.build, "./tasks") %>',
-      options: '<%= path.join(paths.build, "./options") %>',
-      src: './src',
-      dest: './dest'
-    },
-
-    tasks: {}
-
-  }, config);
-
-  // expand and store configuration object
-  wires.config = expander.interface(config, {
-    imports: imports
-  })();
-
-  // chaining
-  return wires;
+var _cache = {
+  options: {},
+  tasks: {}
 };
+
+// =_load
+// - loads a file given a path and basepath (defaults to config.buildPath);
+// @param filePath => path to the file to load
+// @param base => [optional] the context to use for 'require'
+
+function _load( filePath, base ) {
+  // load absolute paths normally
+  if (path.isAbsolute(filePath)) return require(filePath);
+
+  // load path relatively to context setting
+  return require( path.join(base || wires.config.buildPath, filePath) );
+}
+
+// =_getPath
+// - returns the path for files of a given type
+// @param type => either 'task' or 'options'
+// @param name => the name of the 'task' or 'plugin' to get the function or options for
+// @param filename => the name of the file defining the task function or plugin options
+
+function _getPath(type, name, filename) {
+  // get basePath
+  var basePath;
+
+  switch (type) {
+  case 'task':
+    basePath = wires.config.tasksPath;
+    break;
+  case 'options':
+    basePath = wires.config.optionsPath;
+    break;
+  }
+
+  // get complete file path
+  var filePath = path.join( basePath, filename || _getFilename(name) );
+
+  // add file extension
+  return _.endsWith(filePath, '.js') ? filePath : filePath + '.js';
+}
+
+// =_exists
+// - checks whether a given task/options file exists
+// @param type => either 'task' or 'options'
+// @param name => the name of the 'task' or 'plugin' for which to load config/options
+// @param filename => the name of the file exporting the task function or the options
+
+function _exists(type, name, filename ) {
+  // cached files/modules exist
+  if (_cache[type].hasOwnProperty(name)) return true;
+
+  // search for module's file
+  var filePath = _getPath(type, name, filename),
+    file = globule.find(filePath, {
+      cwd: wires.config.context
+    });
+
+  // return whether file was found or not
+  return !!(file.length);
+}
+
+// =_get
+// returns the value exported in a given task/options file
+// @param type => either 'task' or 'options'
+// @param name => the name of the 'task' or 'plugin' for which to load config/options
+// @param filename => the file exporting the wanted value
+
+function _get( type, name, filename) {
+  // return cached module
+  if (_cache[type][name]) return _cache[type][name];
+
+  else if (!_exists(type, name, filename)) {
+    // Todo: throw warning if options.debug = true
+    //  OR throw an error (not interesting as a feature to fail silently..)
+    return undefined;
+  }
+
+  // load file
+  var res = _load( _getPath(type, name, filename) );
+
+  // cache and return result
+  _cache[type][name] = res;
+  return res;
+}
 
 // =Tasks
 // ------
-// load tasks from separate files
+// load and register tasks from separate files
 
 // =hasTask
 // - returns whether a given task exists or not
@@ -290,7 +359,7 @@ wires.loadConfig = function(config, imports) {
 // @param filename => the name of the file exporting the task function
 
 wires.hasTask = function( name, filename ) {
-  return _exists('tasks', name, filename);
+  return _exists('task', name, filename);
 };
 
 // =getTask
@@ -299,48 +368,7 @@ wires.hasTask = function( name, filename ) {
 // @param filename => the name of the file exporting the task function
 
 wires.getTask = function(name, filename) {
-  return _get('tasks', name, filename);
-};
-
-// =loadTasks
-// - loads a set of tasks by registering it using `gulp.task`
-// @param tasks => an array of task names to load, or `true` to load all tasks
-
-wires.loadTasks = function(tasks) {
-  // load all tasks found in the task folder by default
-  // or when 'true' is passed
-  if (!tasks || tasks === true) {
-    // set 'tasks' to an array of task filenames
-    tasks = globule.find(wires.config.root.tasks, {
-      cwd: wires.options.context
-    }).map(function(file) {
-      return path.basename(file);
-    });
-  }
-
-  // allow passing an array of task names
-  if (Array.isArray(tasks))
-  {
-    tasks.forEach(function(task) {
-      wires.loadTask(task);
-    });
-  }
-
-  // allow passing an object of tasks
-  else if (typeof tasks == 'object')
-  {
-    for (var task in tasks)
-    {
-      // allow mapping a task to a hash with filename and dependencies
-      if (typeof tasks[task] == 'object') {
-        wires.loadTask(task, tasks[task].deps, tasks[task].filename);
-      }
-      // or a dependenciess array, or a filename
-      else {
-        wires.loadTask(task, tasks[task]);
-      }
-    }
-  }
+  return _get('task', name, filename);
 };
 
 // =loadTask
@@ -374,6 +402,53 @@ wires.loadTask = function(name, deps, filename) {
   // TODO: make this possible in task configuration
   if (wires.env.watch) {
     gulp.watch(wires.watchGlob(name), name);
+  }
+};
+
+// =loadTasks
+// - loads a set of tasks by registering it using `gulp.task`
+// @param tasks => an array of task names to load, or `true` to load all tasks
+
+wires.loadTasks = function(tasks) {
+  // load all tasks found in the task folder by default
+  // or when 'true' is passed
+  if (!tasks || tasks === true) {
+    // get absolute path to tasks directory
+    var tasksDir = path.isAbsolute(tasksPath) ? tasksPath :
+      path.join(wires.config.buildPath, tasksPath);
+
+    // set 'tasks' to an array of task filenames
+    // TODO: allow sub-tasks in sub-folders
+    // => need to replace _.camelCase and _.kebabCase so '/' is mapped to ':'
+    tasks = globule.find('*.js', {
+      cwd: tasksDir
+    }).map(function(file) {
+      return _getKeyname( path.basename(file) );
+    });
+  }
+
+  // allow passing an array of task names
+  if (Array.isArray(tasks))
+  {
+    tasks.forEach(function(task) {
+      wires.loadTask(task);
+    });
+  }
+
+  // allow passing an object of tasks
+  else if (typeof tasks == 'object')
+  {
+    for (var task in tasks)
+    {
+      // allow mapping a task to a hash with filename and dependencies
+      if (typeof tasks[task] == 'object') {
+        wires.loadTask(task, tasks[task].deps, tasks[task].filename);
+      }
+      // or a dependencies array, or a filename
+      else {
+        wires.loadTask(task, tasks[task]);
+      }
+    }
   }
 };
 
@@ -681,9 +756,7 @@ wires.files = function(glob, target) {
   glob = wires.glob(glob, target);
 
   // return an array of files that correspond to the glob
-  return globule.find(glob, {
-    cwd: wires.options.context
-  });
+  return globule.find(glob);
 };
 
 // =mainFiles
