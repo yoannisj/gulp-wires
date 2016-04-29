@@ -11,7 +11,7 @@ module.exports = {
   join_paths: '<%= path.join("../some/joined/", "./dir/path") %>',
 
   paths: {
-    build: './tests/build/',
+    build: './build/',
     src: './src',
     dest: './dest',
     bar: './some/path'

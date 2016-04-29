@@ -25,6 +25,9 @@ var loadPlugins = require('gulp-load-plugins');
 // - accept a function receiving the task name and returning the file name
 // Todo: Implement a 'data' method to share data through task functions
 // Todo: If config is given as filepath, use config's base path as default 'build' path
+// ¿ Todo: move options to config ?
+// ¿ Todo: rename 'files.src' to 'files.main' ?
+// ¿ Todo: rename 'dir.src' to 'dir.base' ?
 
 // =Singleton Class
 // ----------------
@@ -38,7 +41,7 @@ _isSetup = false;
 module.exports = function(config, options) {
 
   // if called first time, set up configuration and options
-  if (!_isSetup || arguments.length) {
+  if (!_isSetup || (arguments.length && config)) {
     _setup(config, options);
     _isSetup = true;
   }
@@ -57,6 +60,7 @@ module.exports = function(config, options) {
 function _setup(config, options) {
   // inject default options
   wires.options = _.merge({}, {
+    context: process.cwd(),
     debug: !!(gutil.env.debug),
     imports: {},
     loadPlugins: {},
@@ -102,13 +106,13 @@ var _cache = {
 };
 
 // =_loadFile
-// - loads a file given a path and optional context
+// - loads a file given a path and the config's context (defaults to 'process.cwd()');
 // @param filePath => path to the file to load
-// @param context => context for 'filePath', defaults to process.cwd()
+// @param context => [optional] the context to use for 'require'
 
 function _loadFile( filePath, context ) {
-  // default to process cwd as context
-  if (!context) context = process.cwd();
+  // default to options.context or process.cwd() as context
+  if (!context) context = wires.options.context;
 
   // return module exported by file
   return require( path.join(context, filePath) );
@@ -140,7 +144,7 @@ function _exists(type, name, filename ) {
   // search for module's file
   var filePath = _getPath(type, name, filename),
     file = globule.find(filePath, {
-      cwd: process.cwd()
+      cwd: wires.options.context
     });
 
   // return whether file was found or not
@@ -206,8 +210,8 @@ function _log(type) {
 // - logs a warning message in the console
 // @param messages.. => list of messages to log in the warning
 
-function _warn() {
-  _log('warning', arguments);
+function _warn(message) {
+  _log('warning', message);
 }
 
 // =_warn
@@ -286,11 +290,6 @@ wires.loadConfig = function(config, imports) {
 // @param filename => the name of the file exporting the task function
 
 wires.hasTask = function( name, filename ) {
-  // accept tasks that are configured but miss a file defining their function
-  if (wires.config.tasks.hasOwnProperty(name)) {
-    return true;
-  }
-
   return _exists('tasks', name, filename);
 };
 
@@ -313,7 +312,7 @@ wires.loadTasks = function(tasks) {
   if (!tasks || tasks === true) {
     // set 'tasks' to an array of task filenames
     tasks = globule.find(wires.config.root.tasks, {
-      cwd: __dirname
+      cwd: wires.options.context
     }).map(function(file) {
       return path.basename(file);
     });
@@ -394,7 +393,7 @@ wires.getTaskConfig = function(task) {
 
   // throw warning in debug mode if no options are defined and task file does not exist
   if (wires.options.debug && !conf && !wires.hasTask(task)) {
-    _warn('task not found:', task);
+    _warn('getTaskConfig(): could not find the task "' + task + '".');
   }
 
   // get cached task configurations
@@ -503,6 +502,9 @@ var _paths = {};
 // @param target => which path to retreive (either 'src'/'base'/'watch' or 'dest')
 
 wires.path = function( task, target ) {
+  // throw error if target argument is missing
+  if (target === undefined) _throw(9, 'called `wires.path` without the `target` argument.');
+
   // map 'base' and 'watch' targets to 'src' dirs
   if (target == 'base' || target == 'watch') target = 'src';
 
@@ -511,6 +513,12 @@ wires.path = function( task, target ) {
 
   // return cached directories
   if (_paths.hasOwnProperty(ns)) return _paths[ns];
+
+  // return 'undefined' for unexisting tasks
+  if (!wires.hasTask(task)) {
+    _warn('wires.path(): could not find the task "' + task + '".');
+    return undefined;
+  }
 
   // get config options (with defaults for missing options)
   var conf = wires.getTaskConfig(task);
@@ -663,14 +671,19 @@ var _files = {};
 // get files corresponding to given glob
 // - detects task-names and replaces them with glob correspondig to config
 // @param glob = the glob or array of globs to parse
-// @param target = the task files to target, either 'src'/'main' or 'watch'
+// @param target = [optional] the task files to target, either 'src'/'main' or 'watch'
 
 wires.files = function(glob, target) {
+  // default to 'src' target (useful in case only arbitrary globs are passed)
+  if (target === undefined) target = 'src';
+
   // parse glob to detect and replace task-names
   glob = wires.glob(glob, target);
 
   // return an array of files that correspond to the glob
-  return globule.find(glob);
+  return globule.find(glob, {
+    cwd: wires.options.context
+  });
 };
 
 // =mainFiles
