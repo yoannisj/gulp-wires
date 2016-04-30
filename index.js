@@ -44,7 +44,7 @@ wires.env = gutil.env;
 // of the helper class (singleton/pseudo static class)
 
 var _isSetup = false,
-  _latestConfig,
+  _currConfig,
   _getFilename,
   _getKeyname,
   _defaults = {
@@ -84,7 +84,7 @@ var _isSetup = false,
 
 module.exports = function(config) {
   // if called first time, set up configuration
-  if (!_isSetup || (config && _latestConfig != config)) {
+  if (!_isSetup || (config && _currConfig != config)) {
     _isSetup = true;
 
     // load configuration
@@ -93,7 +93,7 @@ module.exports = function(config) {
     // load plugins
     wires.plugins = loadPlugins(wires.config.loadPlugins);
 
-    // monkey path gulp methods
+    // monkey patch gulp methods
     if (wires.config.monkeyPatch) {
       _monkeyPatchGulp();
     }
@@ -115,13 +115,14 @@ module.exports = function(config) {
 //    - keys are variable names, values are values/functions
 
 wires.loadConfig = function(config) {
+
   // default config filepath
   if (!config) config = './build/config.js';
 
   // store reference to latest config that was loaded.
   // This way, running loadConfig() with the same argument
   // twice in a row won't do the job twice
-  _latestConfig = config;
+  _currConfig = config;
 
   // allow passing a filepath as config
   if (typeof config == 'string') {
@@ -135,14 +136,14 @@ wires.loadConfig = function(config) {
   }
 
   // inject default configuration options
-  config = _.merge(_defaults, config || {});
+  config = _.merge({}, _defaults, config || {});
 
   // get default buildPath
   if (!config.buildPath)
   {
     // get config path's dirname
-    if (typeof _latestConfig == 'string') {
-      config.buildPath = path.dirname(_latestConfig);
+    if (typeof _currConfig == 'string') {
+      config.buildPath = path.dirname(_currConfig);
     }
 
     // or default to process's cwd

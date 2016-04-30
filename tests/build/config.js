@@ -27,7 +27,7 @@ module.exports = {
   join_paths: '<%= path.join("../some/joined/", "./dir/path") %>',
 
   paths: {
-    bar: './some/path'
+    bar: './tests/some/path'
   },
 
   tasks: {
@@ -44,7 +44,7 @@ module.exports = {
     },
 
     'foo': {
-      root: '<%= paths.dest %>',
+      root: '<%= root.dest %>',
       dir: {
         src: './foo/src',
         dest: './foo'
