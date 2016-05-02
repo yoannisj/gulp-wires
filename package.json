@@ -27,6 +27,7 @@
   "homepage": "https://github.com/yoannisj/gulp-wires#readme",
   "devDependencies": {
     "color": "^0.11.1",
+    "del": "^2.2.0",
     "expander": "^0.3.3",
     "gulp-jasmine": "^2.3.0",
     "gulp-load-plugins": "^1.2.0",
