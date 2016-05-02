@@ -17,7 +17,7 @@
     "gulpfriendly",
     "nodejs",
     "gulp",
-    "configuration"
+    "configuration",
     "modular"
   ],
   "author": "Yoannis Jamar <yoannis.j@gmail.com>",
