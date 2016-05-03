@@ -843,7 +843,7 @@ function _monkeyPatchGulp() {
   // =gulp.dest
   gulp.dest = function(path, options) {
     // use 'wires.dest' to replace task names with path in config
-    path = wires.destPath(path, options);
+    path = wires.dest(path, options);
 
     return _gulpAPI.dest.call(gulp, path);
   };
