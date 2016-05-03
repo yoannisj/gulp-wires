@@ -27,7 +27,10 @@
     var wires = require('gulp-wires')([ config, options ]);
 
     wires.getTask('task-name');
-    wires.loadTask('task-name'[, dependencies ]);
+    wires.getTask('task-name', fn);
+    wires.loadTask('task-name');
+    wires.loadTask('task-name', deps);
+    wires.loadTask('task-name', deps, fn);
 
 ### Working with gulp plugins
 
@@ -199,3 +202,10 @@ This means you can write minimal task settings like these:
     'my-other-task': {
         files: './**/*.txt'
     }
+
+#### Group Tasks
+
+Group tasks, are tasks that simply run other tasks. The only configuration setting that these tasks need is the `deps` setting. Therefore, they can be defined as an array of dependency tasks:
+
+    'my-group-task': ['my-task', 'my-other-task']
+

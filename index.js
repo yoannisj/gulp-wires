@@ -378,8 +378,18 @@ wires.getTaskConfig = function(task) {
   // get cached task configurations
   if (_taskConfigs.hasOwnProperty(task)) return _taskConfigs[task];
 
+  // understand "group" tasks, defined as dependency arrays
+  // TODO: Test this
+  if (Array.isArray(conf)) {
+    // map dependencies to the 'deps' setting
+    conf = {
+      deps: conf
+    };
+  }
+
   // inject option defaults
   conf = _.assign({
+    deps: [],
     root: {
       src: wires.config.root.src,
       dest: wires.config.root.dest
@@ -450,7 +460,7 @@ wires.getTask = function(name, filename) {
 // - loads a given task by registering it using `gulp.task`.
 // @param name => the name of the task to load
 // @param deps => array of task-names to run before
-// @param filename => name of file exporting the task function
+// @param fn => [optional] task function or name of file exporting it
 
 wires.loadTask = function(name, deps, filename) {
   // get task configuration
@@ -458,26 +468,35 @@ wires.loadTask = function(name, deps, filename) {
 
   // allow omitting the 'deps' argument
   if (!Array.isArray(deps)) {
-
     fn = deps;
-    deps = conf && conf.deps ? conf.deps : [];
+    deps = conf.deps;
   }
 
   // load function from task file if no task function is provided
   // or if a filename is provided instead
   if (!fn || typeof fn == 'string') {
-    fn = wires.getTask(name, fn);
+    fn = wires.getTask(name, filename);
   }
 
-  // register task through gulp
-  gulp.task(name, deps, fn);
+  // unless the task has no 'deps' and no 'fn'
+  if (deps || fn) {
+    // register task through gulp
+    gulp.task(name, deps, fn);
+  }
+
+  // throw a warning in debug mode
+  else if (wires.debug) {
+    _warn('loadTask: the task ' + name + ' was not registered. ' +
+      'It has no dependencies and no main function.');
+  }
 
   // automate watching files and run task on changes
   // PROBLEM: reference other task's watch/src files..
   // TODO: make this possible in task configuration
-  if (wires.env.watch) {
-    gulp.watch(wires.watchGlob(name), name);
-  }
+  // TODO: TEST this
+  // if (wires.env.watch) {
+  //   _gulpApi.watch(wires.watchGlob(name), fn);
+  // }
 };
 
 // =loadTasks
