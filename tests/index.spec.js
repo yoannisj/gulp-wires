@@ -9,7 +9,7 @@ var confHash = require(path.join(process.cwd(), confFile));
 
 // =main
 // -----
-xdescribe('the exported main function', function() {
+describe('the exported main function', function() {
 
   it('returns a static object, after setup', function() {
     var wires = get_wires(confFile);
@@ -31,7 +31,7 @@ xdescribe('the exported main function', function() {
 
 // =loadConfig
 // -----------
-xdescribe('the `loadConfig` method', function() {
+describe('the `loadConfig` method', function() {
 
   beforeEach(function() {
     this.wires = get_wires({});
@@ -84,7 +84,7 @@ xdescribe('the `loadConfig` method', function() {
 
 // =hasTask
 // --------
-xdescribe('the `hasTask` method', function() {
+describe('the `hasTask` method', function() {
 
   beforeEach(function() {
     this.wires = get_wires(confFile);
@@ -105,7 +105,7 @@ xdescribe('the `hasTask` method', function() {
 
 // =getTask
 // --------
-xdescribe('the `getTask` method', function() {
+describe('the `getTask` method', function() {
 
   beforeEach(function() {
     this.wires = get_wires(confFile);
@@ -125,7 +125,7 @@ xdescribe('the `getTask` method', function() {
 // =loadTask
 // ---------
 
-xdescribe('the `loadTask` method', function() {
+describe('the `loadTask` method', function() {
 
   beforeEach(function() {
     this.wires = get_wires(confFile);
@@ -145,7 +145,7 @@ xdescribe('the `loadTask` method', function() {
 
 // =getTaskConfig
 // --------------
-xdescribe('the `getTaskConfig` method', function() {
+describe('the `getTaskConfig` method', function() {
 
   beforeEach(function() {
     this.wires = get_wires(_.assign(confHash, {
@@ -206,7 +206,7 @@ xdescribe('the `getTaskConfig` method', function() {
 
 // =hasOptions
 // -----------
-xdescribe('the `hasOptions` method', function() {
+describe('the `hasOptions` method', function() {
 
   beforeEach(function() {
     this.wires = get_wires(confFile);
@@ -226,7 +226,7 @@ xdescribe('the `hasOptions` method', function() {
 
 // =getOptions
 // -----------
-xdescribe('the `getOptions` method', function() {
+describe('the `getOptions` method', function() {
 
   beforeEach(function() {
     this.wires = get_wires(confFile);
@@ -250,7 +250,7 @@ xdescribe('the `getOptions` method', function() {
 
 // =plugin
 // -------
-xdescribe('the `plugin` method', function() {
+describe('the `plugin` method', function() {
 
   it('should use the plugin options returned by `getOptions` by default', function() {
 
@@ -272,7 +272,7 @@ xdescribe('the `plugin` method', function() {
 
 // =path
 // -----
-xdescribe('the `path` method', function() {
+describe('the `path` method', function() {
 
   beforeEach(function() {
     this.wires = get_wires(confFile);
@@ -325,7 +325,7 @@ xdescribe('the `path` method', function() {
 
 // =base
 // -----
-xdescribe('the `base` method', function() {
+describe('the `base` method', function() {
 
   beforeEach(function() {
     this.wires = get_wires(confFile);
@@ -343,7 +343,7 @@ xdescribe('the `base` method', function() {
 
 // =dest
 // -----
-xdescribe('the `dest` method', function() {
+describe('the `dest` method', function() {
 
   beforeEach(function() {
     this.wires = get_wires(confFile);
@@ -376,31 +376,31 @@ describe('the `glob` method', function() {
     this.doubleNestedSrcGlob = _.union(['tests/src/sass/**/*'], this.nestedSrcGlob);
   });
 
-  xit('should not alter a simple glob', function() {
+  it('should not alter a simple glob', function() {
     expect(this.wires.glob('**/*.scss', 'src')).toEqual('**/*.scss');
     expect(this.wires.glob('!**/*.sass', 'src')).toEqual('!**/*.sass');
   });
 
-  xit('should return `undefined` if the name of an unexisting task is passed', function() {
+  it('should return `undefined` if the name of an unexisting task is passed', function() {
     expect(this.wires.glob('deizjooi', 'src')).toBeUndefined();
     expect(this.wires.glob('deizjooi', 'watch')).toBeUndefined();
   });
 
-  xit('should replace tasks with corresponding globs', function() {
+  it('should replace tasks with corresponding globs', function() {
     expect(this.wires.glob('wiz', 'src')).toEqual(this.wizSrcGlob);
     expect(this.wires.glob('sass', 'src')).toEqual(this.sassSrcGlob);
   });
 
-  xit('should accept a target argument to choose between task src or watch globs', function() {
+  it('should accept a target argument to choose between task src or watch globs', function() {
     expect(this.wires.glob('sass', 'src')).toEqual(this.sassSrcGlob);
     expect(this.wires.glob('sass', 'watch')).toEqual(this.sassWatchGlob);
   });
 
-  xit('should map the `main` target to `src`', function() {
+  it('should map the `main` target to `src`', function() {
     expect(this.wires.glob('sass', 'main')).toEqual(this.wires.glob('sass', 'src'));
   });
 
-  xit('should accept arrays of globs and detect task-names inside', function() {
+  it('should accept arrays of globs and detect task-names inside', function() {
     expect(this.wires.glob(['!*.md', 'sass'], 'src')).toEqual(jasmine.any(Array));
     expect(this.wires.glob(['!*.md', 'sass'], 'src')).toEqual(_.union(['!*.md'], [this.sassSrcGlob]));
     expect(this.wires.glob(['some/path/**/*.js', 'foo'], 'src')).toEqual(_.union(['some/path/**/*.js'], [this.fooSrcGlob]));
@@ -413,11 +413,21 @@ describe('the `glob` method', function() {
     expect(this.wires.glob(['double-nested-src', '**/*.png'], 'src')).toEqual(_.union(this.doubleNestedSrcGlob, ['**/*.png']));
   });
 
+  it('should accept a `base` optoin that overrides task base paths', function() {
+    var opts = { base: 'some/path' };
+
+    expect(this.wires.glob('sass', opts)).toEqual('some/path/*.scss');
+    expect(this.wires.glob('nested-src', opts)).toEqual(['some/path/**/*.txt', 'some/path/*.scss']);
+    expect(this.wires.glob('nested-negated-src', opts)).toEqual(['some/path/**/*', '!some/path/*.scss']);
+    expect(this.wires.glob(['nested-src', '**/*.png'], opts)).toEqual(['some/path/**/*.txt', 'some/path/*.scss', 'some/path/**/*.png']);
+    expect(this.wires.glob(['double-nested-src', '**/*.png'], opts)).toEqual(['some/path/**/*', 'some/path/**/*.txt', 'some/path/*.scss', 'some/path/**/*.png']);
+  });
+
 });
 
 // =files
 // ------
-xdescribe('the `files` method', function() {
+describe('the `files` method', function() {
 
   beforeEach(function() {
     this.wires = get_wires(confFile);
