@@ -367,16 +367,16 @@ var _taskConfigs = {};
 // @param task => name of task fot witch to retreive configuration
 
 wires.getTaskConfig = function(task) {
-  // get task options from global configuration
-  var conf = wires.config.tasks[task];
-
   // throw warning in debug mode if no options are defined and task file does not exist
-  if (wires.config.debug && !conf && !wires.hasTask(task)) {
+  if (wires.config.debug && !wires.hasTask(task)) {
     _warn('getTaskConfig(): could not find the task "' + task + '".');
   }
 
   // get cached task configurations
   if (_taskConfigs.hasOwnProperty(task)) return _taskConfigs[task];
+
+  // get task options from global configuration
+  var conf = wires.config.tasks[task];
 
   // understand "group" tasks, defined as dependency arrays
   // TODO: Test this
@@ -444,7 +444,7 @@ wires.getTaskConfig = function(task) {
 // @param filename => the name of the file exporting the task function
 
 wires.hasTask = function( name, filename ) {
-  return _exists('task', name, filename);
+  return (wires.config.tasks.hasOwnProperty(name) || _exists('task', name, filename));
 };
 
 // =getTask
@@ -646,31 +646,45 @@ function _negateGlob(glob) {
     });
   }
 
-  return '!' + _.trimStart(glob, './!');
-};
+  // remove lead from relative globs
+  glob = _.trimStart('./');
+
+  // negate glob
+  return _.startsWith(glob, '!') ? glob.substr(1) : '!' + glob;
+}
 
 var _globs = {};
 
 // =_glob(glob, target, _base, _negate)
 // - dynamically build a glob, recognizes task names to include or ignore task files
 // @param glob = the glob or array of globs to parse
-// @param target = the task files to target, either 'src'/'main' or 'watch'
-// @param _base [internal] = whether to prepend the glob with a base path or not
-// @param _negate [internal] = wether to negate the glob or not
+// @param options [optional] = options to customize computed glob
+//  - options.target - the task files to target, either 'src'/'main' or 'watch',
+//  - options.base - base path to prepend (defaults to task's base path for task names)
+// @param _negate [internal] = whether to negate the glob or not
 
-function _glob(glob, target, _base, _negate) {
-  // make sure the 'target' argument was passed
-  if (target === undefined) _throw(9, 'called `wires.glob` without the `target` argument.');
+function _glob(glob, options, _negate) {
+  // allow passing target instead of options
+  if (typeof options == 'string') {
+    options = { target: options };
+  }
 
-  // map the 'main' target to 'src' files
-  if (target == 'main') target = 'src';
+  else {
+    // inject default options
+    options = _.assign({
+      target: 'src'
+    }, options);
+  }
+
+  // swap 'main' target to 'src'
+  if (options.target == 'main') options.target = 'src';
 
   // allow array of globs and/or task-names
   if (Array.isArray(glob)) {
     // apply to all items in the array glob
     // - flatten because some task names might be aliased to nested array globs
     var globs = _.flatMap(glob, function(pattern) {
-      return _glob(pattern, target, _base, _negate);
+      return _glob(pattern, options);
     });
 
     // remove task names that aliased to undefined
@@ -680,40 +694,52 @@ function _glob(glob, target, _base, _negate) {
     return globs.length ? globs : undefined;
   }
 
-  // detect task-names and negated task-names
-  var isNegated = (glob.substr(0, 1) == '!'),
+  // detect task-names in glob
+  var isNegated = _.startsWith(glob, '!'),
     pattern = isNegated ? glob.substr(1) : glob,
     isTask = (!isGlob(pattern) && wires.hasTask(pattern));
 
+  // swap task names with their globs
   if (isTask) {
     var task = pattern,
-      ns = task + '_' + target;
+      // different caching ns for negated task-names
+      ns = isNegated ? task + '_not' : task;
 
-    // separate namespace for negated task-names
-    if (isNegated) ns = ns + '_not';
+     // return cached task globs
+    if (_globs.hasOwnProperty(ns) && _.isEqual(_globs[ns].options)) {
+      return _globs[ns].value;
+    }
 
-    // return cached task glob
-    if (_globs.hasOwnProperty(ns)) return _globs[ns];
+    wires.util.log('task::', task);
+    wires.util.log('options base::', options.base);
+    wires.util.log('task base::', wires.path(task, 'base'));
 
-    var taskConf = wires.getTaskConfig(task),
-      base = wires.path(task, 'base');
+    // default 'base' option to task's base path
+    options.base = options.base || wires.path(task, 'base');
 
-    // could be an array, should not have any task-names
-    glob = _glob(taskConf.files[target], target, base, isNegated);
+    wires.util.log('glob base::', options.base);
+    wires.util.log('-----');
 
-    // cache task glob
-    _globs[ns] = glob;
+    // compute task files' glob
+    var taskConf = wires.getTaskConfig(task);
+    glob = _glob(taskConf.files[options.target], options, isNegated);
+
+    // cache computed glob
+    _globs[task] = {
+      options: options,
+      value: glob
+    };
+
     return glob;
   }
 
-  if (!isGlob(glob)) {
-    return undefined;
-  }
+  // return undefined if no-glob expression is passed
+  if (!isGlob(glob)) return undefined;
 
-  // join base
-  if (_base) glob = globjoin(_base, glob);
+  // join glob to 'base' option
+  if (options.base) glob = globjoin(options.base, glob);
 
-  // negate
+  // [internal] negate glob - for task-names that starter with '!'
   if (_negate) glob = _negateGlob(glob);
 
   return glob;
@@ -722,26 +748,42 @@ function _glob(glob, target, _base, _negate) {
 // =glob(glob, target)
 // - builds a glob by replacing task-names with globs corresponding to config
 // @param glob = the glob or array of globs to parse
-// @param target = the task files to target, either 'src'/'main' or 'watch'
+// @param options [optional] = options to customize computed glob
+//  - options.target - the task files to target, either 'src'/'main' or 'watch',
+//  - options.base - base path to prepend (defaults to task's base path for task names)
 
-wires.glob = function(glob, target) {
-  return _glob(glob, target);
+wires.glob = function(glob, options) {
+  return _glob(glob, options);
 };
 
 // =mainGlob(glob)
 // - builds a glob by replacing task-names with globs for their main files
 // @param glob = the glob or array of globs to parse
 
-wires.mainGlob = function(glob) {
-  return wires.glob(glob, 'src');
+wires.mainGlob = function(glob, options) {
+  // force 'src' target
+  if (options && typeof options == 'object') {
+    options.target = 'src';
+  } else {
+    options = 'src';
+  }
+
+  return wires.glob(glob, options);
 };
 
 // =watchGlob(glob)
 // - builds a glob by replacing task-names with globs for their watch files
 // @param glob = the glob or array of globs to parse
 
-wires.watchGlob = function(glob) {
-  return wires.glob(glob, 'watch');
+wires.watchGlob = function(glob, options) {
+  // force 'src' target
+  if (options && typeof options == 'object') {
+    options.target = 'watch';
+  } else {
+    options = 'watch';
+  }
+
+  return wires.glob(glob, options);
 };
 
 // =Files
