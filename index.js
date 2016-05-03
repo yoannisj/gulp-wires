@@ -462,7 +462,8 @@ wires.getTask = function(name, filename) {
 // @param deps => array of task-names to run before
 // @param fn => [optional] task function or name of file exporting it
 
-wires.loadTask = function(name, deps, filename) {
+wires.loadTask = function(name, deps, fn) {
+
   // get task configuration
   var conf = wires.getTaskConfig(name);
 
@@ -475,27 +476,18 @@ wires.loadTask = function(name, deps, filename) {
   // load function from task file if no task function is provided
   // or if a filename is provided instead
   if (!fn || typeof fn == 'string') {
-    fn = wires.getTask(name, filename);
+    fn = wires.getTask(name, fn);
   }
 
-  // unless the task has no 'deps' and no 'fn'
-  if (deps || fn) {
-    // register task through gulp
-    gulp.task(name, deps, fn);
-  }
-
-  // throw a warning in debug mode
-  else if (wires.debug) {
-    _warn('loadTask: the task ' + name + ' was not registered. ' +
-      'It has no dependencies and no main function.');
-  }
+  // register task through gulp
+  gulp.task(name, deps, fn);
 
   // automate watching files and run task on changes
   // PROBLEM: reference other task's watch/src files..
   // TODO: make this possible in task configuration
   // TODO: TEST this
   // if (wires.env.watch) {
-  //   _gulpApi.watch(wires.watchGlob(name), fn);
+  //   gulp.watch(wires.watch(name), fn);
   // }
 };
 
