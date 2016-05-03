@@ -728,7 +728,7 @@ wires.glob = function(glob, target) {
   return _glob(glob, target);
 };
 
-// =srcGlob(glob)
+// =mainGlob(glob)
 // - builds a glob by replacing task-names with globs for their main files
 // @param glob = the glob or array of globs to parse
 
@@ -827,7 +827,7 @@ function _monkeyPatchGulp() {
   // =gulp.src
   gulp.src = function(globs, options) {
     // use 'wires.src' to replace task names with globs in config
-    globs = wires.srcGlob(globs);
+    globs = wires.mainGlob(globs);
 
     return _gulpAPI.src.call(gulp, globs, options);
   };
