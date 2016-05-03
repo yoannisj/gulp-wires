@@ -829,6 +829,7 @@ function _monkeyPatchGulp() {
     // use 'wires.src' to replace task names with globs in config
     globs = wires.mainGlob(globs);
 
+    // delegate to original `gulp.src`
     return _gulpAPI.src.call(gulp, globs, options);
   };
 
@@ -837,14 +838,16 @@ function _monkeyPatchGulp() {
     // use 'wires.watch' to replace task names with globs in config
     globs = wires.watchGlob(globs);
 
+    // delegate to original `gulp.watch`
     return _gulpAPI.watch.call(gulp, globs, options, handlers);
   };
 
   // =gulp.dest
   gulp.dest = function(path, options) {
-    // use 'wires.dest' to replace task names with path in config
-    path = wires.dest(path, options);
+    // replace task name with destination path
+    if (wires.hasTask(path)) path = wires.dest(path);
 
-    return _gulpAPI.dest.call(gulp, path);
+    // delegate to original `gulp.dest`
+    return _gulpAPI.dest.call(gulp, path, options);
   };
 }
