@@ -647,7 +647,7 @@ function _negateGlob(glob) {
   }
 
   // remove lead from relative globs
-  glob = _.trimStart('./');
+  glob = _.trimStart(glob, './');
 
   // negate glob
   return _.startsWith(glob, '!') ? glob.substr(1) : '!' + glob;
@@ -663,7 +663,7 @@ var _globs = {};
 //  - options.base - base path to prepend (defaults to task's base path for task names)
 // @param _negate [internal] = whether to negate the glob or not
 
-function _glob(glob, options, _negate) {
+function _glob(glob, options, _taskBase, _taskNegate) {
   // allow passing target instead of options
   if (typeof options == 'string') {
     options = { target: options };
@@ -684,7 +684,7 @@ function _glob(glob, options, _negate) {
     // apply to all items in the array glob
     // - flatten because some task names might be aliased to nested array globs
     var globs = _.flatMap(glob, function(pattern) {
-      return _glob(pattern, options);
+      return _glob(pattern, options, _taskBase, _taskNegate);
     });
 
     // remove task names that aliased to undefined
@@ -710,19 +710,11 @@ function _glob(glob, options, _negate) {
       return _globs[ns].value;
     }
 
-    wires.util.log('task::', task);
-    wires.util.log('options base::', options.base);
-    wires.util.log('task base::', wires.path(task, 'base'));
-
-    // default 'base' option to task's base path
-    options.base = options.base || wires.path(task, 'base');
-
-    wires.util.log('glob base::', options.base);
-    wires.util.log('-----');
-
     // compute task files' glob
-    var taskConf = wires.getTaskConfig(task);
-    glob = _glob(taskConf.files[options.target], options, isNegated);
+    glob = wires.getTaskConfig(task).files[options.target];
+    _taskBase = wires.path(task, 'base');
+
+    glob = _glob(glob, options, _taskBase, isNegated);
 
     // cache computed glob
     _globs[task] = {
@@ -736,11 +728,12 @@ function _glob(glob, options, _negate) {
   // return undefined if no-glob expression is passed
   if (!isGlob(glob)) return undefined;
 
-  // join glob to 'base' option
-  if (options.base) glob = globjoin(options.base, glob);
+  // join glob to 'base' option, or include task's base
+  var base = options.base || _taskBase;
+  if (base) glob = globjoin(base, glob);
 
-  // [internal] negate glob - for task-names that starter with '!'
-  if (_negate) glob = _negateGlob(glob);
+  // [internal] negate glob if task-name starts with '!'
+  if (_taskNegate) glob = _negateGlob(glob);
 
   return glob;
 }
