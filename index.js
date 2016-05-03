@@ -669,12 +669,8 @@ function _glob(glob, options, _taskBase, _taskNegate) {
     options = { target: options };
   }
 
-  else {
-    // inject default options
-    options = _.assign({
-      target: 'src'
-    }, options);
-  }
+  // inject default options
+  options = _.assign({}, options || {});
 
   // swap 'main' target to 'src'
   if (options.target == 'main') options.target = 'src';
@@ -711,7 +707,10 @@ function _glob(glob, options, _taskBase, _taskNegate) {
     }
 
     // compute task files' glob
-    glob = wires.getTaskConfig(task).files[options.target];
+    var taskGlobs = wires.getTaskConfig(task).files;
+
+    glob = options.target ? taskGlobs[options.target] :
+      _.flatten(_.union( [taskGlobs.src], [taskGlobs.watch] ));
     _taskBase = wires.path(task, 'base');
 
     glob = _glob(glob, options, _taskBase, isNegated);
@@ -788,14 +787,13 @@ var _files = {};
 // get files corresponding to given glob
 // - detects task-names and replaces them with glob correspondig to config
 // @param glob = the glob or array of globs to parse
-// @param target = [optional] the task files to target, either 'src'/'main' or 'watch'
+// @param options [optional] = options to customize computed glob
+//  - options.target - the task files to target, either 'src'/'main' or 'watch',
+//  - options.base - base path to prepend (defaults to task's base path for task names)
 
-wires.files = function(glob, target) {
-  // default to 'src' target (useful in case only arbitrary globs are passed)
-  if (target === undefined) target = 'src';
-
+wires.files = function(glob, options) {
   // parse glob to detect and replace task-names
-  glob = wires.glob(glob, target);
+  glob = wires.glob(glob, options);
 
   // return an array of files that correspond to the glob
   return globule.find(glob);
@@ -806,8 +804,15 @@ wires.files = function(glob, target) {
 // - detects task-names and replaces them with glob for their main files
 // @param glob = the glob or array of globs to parse
 
-wires.mainFiles = function( task ) {
-  return wires.files(task, 'src');
+wires.mainFiles = function( task, options ) {
+    // force 'src' target
+  if (options && typeof options == 'object') {
+    options.target = 'src';
+  } else {
+    options = 'src';
+  }
+
+  return wires.files(task, options);
 };
 
 // =watchFiles
@@ -815,8 +820,15 @@ wires.mainFiles = function( task ) {
 // - detects task-names and replaces them with glob for their watch files
 // @param glob = the glob or array of globs to parse
 
-wires.watchFiles = function( task ) {
-  return wires.files(task, 'watch');
+wires.watchFiles = function( task, options ) {
+    // force 'src' target
+  if (options && typeof options == 'object') {
+    options.target = 'watch';
+  } else {
+    options = 'watch';
+  }
+
+  return wires.files(task, options);
 };
 
 // =Gulp
