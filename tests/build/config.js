@@ -75,7 +75,9 @@ module.exports = {
       files: {
         src: ['**/*', "nested-src"]
       }
-    }
+    },
+
+    'group': ['foo', 'sass']
 
   }
 

@@ -122,6 +122,27 @@ describe('the `getTask` method', function() {
 
 });
 
+// =loadTask
+// ---------
+
+describe('the `loadTask` method', function() {
+
+  beforeEach(function() {
+    this.wires = get_wires(confFile);
+  });
+
+  xit('registers the given task using `gulp.task`', function() {
+
+  });
+
+  it('registers "group" tasks, which don\'t have a function file, and just contain a `deps` setting', function() {
+
+  });
+
+  it('understands tasks ');
+
+});
+
 // =getTaskConfig
 // --------------
 describe('the `getTaskConfig` method', function() {
@@ -172,6 +193,13 @@ describe('the `getTaskConfig` method', function() {
     expect(fooConf.files.watch).toEqual(fooConf.files.src);
     expect(fooConf.files.watch).toEqual('**/*');
     expect(sassConf.dir.src).not.toEqual(sassConf.dir.dest);
+  });
+
+  it('understands group task configurations, which are simple arrays of dependency tasks', function() {
+    var groupConf = this.wires.getTaskConfig('group');
+
+    expect(groupConf).toEqual(jasmine.any(Object));
+    expect(groupConf.deps).toBeDefined();
   });
 
 });
