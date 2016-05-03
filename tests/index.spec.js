@@ -369,6 +369,7 @@ describe('the `glob` method', function() {
     this.wizSrcGlob = 'tests/src/dirs/wiz/**/*';
     this.sassSrcGlob = 'tests/src/sass/*.scss';
     this.sassWatchGlob = 'tests/src/sass/**/*.scss';
+    this.sassFilesGlob = ['tests/src/sass/*.scss', 'tests/src/sass/**/*.scss'];
     this.fooSrcGlob = 'tests/dest/foo/src/**/*';
 
     this.nestedSrcGlob = ['tests/src/**/*.txt', this.sassSrcGlob];
@@ -400,6 +401,10 @@ describe('the `glob` method', function() {
     expect(this.wires.glob('sass', 'main')).toEqual(this.wires.glob('sass', 'src'));
   });
 
+  it('should return `src` AND `watch` file globs if no target is specified', function() {
+    expect(this.wires.glob('sass')).toEqual(this.sassFilesGlob);
+  });
+
   it('should accept arrays of globs and detect task-names inside', function() {
     expect(this.wires.glob(['!*.md', 'sass'], 'src')).toEqual(jasmine.any(Array));
     expect(this.wires.glob(['!*.md', 'sass'], 'src')).toEqual(_.union(['!*.md'], [this.sassSrcGlob]));
@@ -414,7 +419,10 @@ describe('the `glob` method', function() {
   });
 
   it('should accept a `base` optoin that overrides task base paths', function() {
-    var opts = { base: 'some/path' };
+    var opts = {
+      target: 'src',
+      base: 'some/path'
+    };
 
     expect(this.wires.glob('sass', opts)).toEqual('some/path/*.scss');
     expect(this.wires.glob('nested-src', opts)).toEqual(['some/path/**/*.txt', 'some/path/*.scss']);
