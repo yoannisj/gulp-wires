@@ -503,14 +503,20 @@ wires.loadTasks = function(tasks) {
     var tasksPath = path.isAbsolute(wires.config.tasksPath) ? wires.config.tasksPath :
       path.join(wires.config.buildPath, wires.config.tasksPath);
 
-    // set 'tasks' to an array of task filenames
+    // get all tasks defined in the 'tasks' folder
     // TODO: allow sub-tasks in sub-folders
     // => need to replace _.camelCase and _.kebabCase so '/' is mapped to ':'
-    tasks = globule.find('*.js', {
+    var fileTasks = globule.find('*.js', {
       cwd: tasksPath
     }).map(function(file) {
       return _getKeyname( path.basename(file, path.extname(file)) );
     });
+
+    // get all tasks defined in the global configuration
+    var configTasks = _.keys(wires.config.tasks);
+
+    // get complete list of tasks
+    tasks = _.union(configTasks, fileTasks);
   }
 
   // allow passing an array of task names
@@ -521,21 +527,6 @@ wires.loadTasks = function(tasks) {
     });
   }
 
-  // allow passing an object of tasks
-  else if (typeof tasks == 'object')
-  {
-    for (var task in tasks)
-    {
-      // allow mapping a task to a hash with filename and dependencies
-      if (typeof tasks[task] == 'object') {
-        wires.loadTask(task, tasks[task].deps, tasks[task].filename);
-      }
-      // or a dependencies array, or a filename
-      else {
-        wires.loadTask(task, tasks[task]);
-      }
-    }
-  }
 };
 
 // =Plugins
@@ -802,6 +793,7 @@ var _gulpIsMonkeyPatched = false;
 // - monkey patch gulp methods
 
 function _monkeyPatchGulp() {
+
   // only monkey patch once!
   if (_gulpIsMonkeyPatched) return;
   _gulpIsMonkeyPatched = true;
