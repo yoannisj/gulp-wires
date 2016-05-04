@@ -86,6 +86,8 @@ var _isSetup = false,
       debug: '<%= debug %>'
     },
 
+    plumber: {},
+
     root: {
       src: './src',
       dest: './dest'
@@ -894,7 +896,17 @@ function _monkeyPatchGulp() {
     globs = wires.mainGlob(globs);
 
     // delegate to original `gulp.src`
-    return _gulpAPI.src.call(gulp, globs, options);
+    var stream = _gulpAPI.src.call(gulp, globs, options);
+
+    // automatically run plumber in debug mode
+    if (wires.config.debug){
+      var plumberOpts = options.plumber || wires.config.plumber || {};
+
+      return stream
+        .pipe(wires.plumber(plumberOpts));
+    }
+
+    return stream;
   };
 
   // =gulp.watch
