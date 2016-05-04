@@ -19,6 +19,7 @@ var loadPlugins = require('gulp-load-plugins');
 var gutil = require('gulp-util');
 var gulpif = require('gulp-if');
 var debug = require('gulp-debug');
+var plumber = require('gulp-plumber');
 
 // Todo: Handle errors
 // Todo: Throw Warnings if options.debug is set to true
@@ -53,6 +54,9 @@ wires.debug = function(options) {
 
   return debug(options);
 };
+
+// =plumber
+wires.plumber = plumber;
 
 // =Singleton Class & Config
 // -------------------------
