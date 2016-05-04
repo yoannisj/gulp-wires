@@ -40,7 +40,7 @@ var wires = {};
 wires.util = gutil;
 wires.env = gutil.env;
 
-// gulpif
+// =gulpif
 wires.if = gulpif;
 
 // =Singleton Class & Config

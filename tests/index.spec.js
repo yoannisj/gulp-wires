@@ -522,6 +522,3 @@ describe('the `files` method', function() {
   });
 
 });
-
-
-
