@@ -15,8 +15,11 @@ var globjoin = require('globjoin');
 
 // gulp
 var gulp = require('gulp');
-var gutil = require('gulp-util');
 var loadPlugins = require('gulp-load-plugins');
+var gutil = require('gulp-util');
+var gulpif = require('gulp-if');
+var debug = require('gulp-debug');
+var plumber = require('gulp-plumber');
 
 // Todo: Handle errors
 // Todo: Throw Warnings if options.debug is set to true
@@ -31,12 +34,30 @@ var loadPlugins = require('gulp-load-plugins');
 
 var wires = {};
 
-// =Gutil
-// ------
-// Shortcuts to gulp-util functionality
+// =Utilities
+// -----------
+// Shortcuts to functionality from gulp-util and other utility plugins
 
+// =gutil
 wires.util = gutil;
+wires.log = gutil.log;
 wires.env = gutil.env;
+
+// =gulpif
+wires.if = gulpif;
+
+// =gulpdebug
+wires.debug = function(options) {
+  // allow passing a string, used as title option
+  if (typeof options == 'string') {
+    options = { title: options };
+  }
+
+  return debug(options);
+};
+
+// =plumber
+wires.plumber = plumber;
 
 // =Singleton Class & Config
 // -------------------------
@@ -65,6 +86,8 @@ var _isSetup = false,
     loadPlugins: {
       debug: '<%= debug %>'
     },
+
+    plumber: {},
 
     root: {
       src: './src',
@@ -874,7 +897,17 @@ function _monkeyPatchGulp() {
     globs = wires.mainGlob(globs);
 
     // delegate to original `gulp.src`
-    return _gulpAPI.src.call(gulp, globs, options);
+    var stream = _gulpAPI.src.call(gulp, globs, options);
+
+    // automatically run plumber in debug mode
+    if (wires.config.debug){
+      var plumberOpts = options.plumber || wires.config.plumber || {};
+
+      return stream
+        .pipe(wires.plumber(plumberOpts));
+    }
+
+    return stream;
   };
 
   // =gulp.watch
