@@ -40,6 +40,7 @@ var wires = {};
 
 // =gutil
 wires.util = gutil;
+wires.log = gutil.log;
 wires.env = gutil.env;
 
 // =gulpif
