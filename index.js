@@ -84,6 +84,7 @@ var _isSetup = false,
     loadTasks: true,
 
     loadPlugins: {
+      config: path.join(process.cwd(), 'package.json'),
       debug: '<%= debug %>'
     },
 
@@ -594,7 +595,7 @@ wires.plugin = function(name, options) {
   }
 
   // invoke plugin and return result
-  return plugins[name](options);
+  return wires.plugins[name](options);
 };
 
 // =Paths
