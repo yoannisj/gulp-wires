@@ -724,9 +724,6 @@ function _glob(glob, options, _taskBase, _taskNegate) {
     return glob;
   }
 
-  // return undefined if no-glob expression is passed
-  if (!isGlob(glob)) return undefined;
-
   // join glob to 'base' option, or include task's base
   var base = options.base || _taskBase;
   if (base) glob = globjoin(base, glob);

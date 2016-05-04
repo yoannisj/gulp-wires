@@ -382,7 +382,7 @@ describe('the `glob` method', function() {
     expect(this.wires.glob('!**/*.sass', 'src')).toEqual('!**/*.sass');
   });
 
-  it('should return `undefined` if the name of an unexisting task is passed', function() {
+  xit('should return `undefined` if the name of an unexisting task is passed', function() {
     expect(this.wires.glob('deizjooi', 'src')).toBeUndefined();
     expect(this.wires.glob('deizjooi', 'watch')).toBeUndefined();
   });
