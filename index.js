@@ -18,6 +18,7 @@ var gulp = require('gulp');
 var loadPlugins = require('gulp-load-plugins');
 var gutil = require('gulp-util');
 var gulpif = require('gulp-if');
+var debug = require('gulp-debug');
 
 // Todo: Handle errors
 // Todo: Throw Warnings if options.debug is set to true
@@ -34,7 +35,7 @@ var wires = {};
 
 // =Utilities
 // -----------
-// Shortcuts to gulp-util functionality
+// Shortcuts to functionality from gulp-util and other utility plugins
 
 // =gutil
 wires.util = gutil;
@@ -42,6 +43,16 @@ wires.env = gutil.env;
 
 // =gulpif
 wires.if = gulpif;
+
+// =gulpdebug
+wires.debug = function(options) {
+  // allow passing a string, used as title option
+  if (typeof options == 'string') {
+    options = { title: options };
+  }
+
+  return debug(options);
+};
 
 // =Singleton Class & Config
 // -------------------------
