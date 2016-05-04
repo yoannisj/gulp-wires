@@ -15,8 +15,9 @@ var globjoin = require('globjoin');
 
 // gulp
 var gulp = require('gulp');
-var gutil = require('gulp-util');
 var loadPlugins = require('gulp-load-plugins');
+var gutil = require('gulp-util');
+var gulpif = require('gulp-if');
 
 // Todo: Handle errors
 // Todo: Throw Warnings if options.debug is set to true
@@ -31,12 +32,16 @@ var loadPlugins = require('gulp-load-plugins');
 
 var wires = {};
 
-// =Gutil
-// ------
+// =Utilities
+// -----------
 // Shortcuts to gulp-util functionality
 
+// =gutil
 wires.util = gutil;
 wires.env = gutil.env;
+
+// =gulpif
+wires.if = gulpif;
 
 // =Singleton Class & Config
 // -------------------------

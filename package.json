@@ -38,6 +38,7 @@
     "globjoin": "^0.1.4",
     "globule": "^1.0.0",
     "gulp": "^3.9.1",
+    "gulp-if": "^2.0.0",
     "gulp-load-plugins": "^1.2.2",
     "gulp-util": "^3.0.7",
     "is-glob": "^2.0.1",
