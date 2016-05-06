@@ -731,11 +731,16 @@ function _glob(glob, options, _taskBase, _taskNegate) {
     }
 
     // compute task files' glob
-    var taskGlobs = wires.getTaskConfig(task).files;
+    var taskConf = wires.getTaskConfig(task),
+      taskGlobs = taskConf.files;
 
     glob = options.target ? taskGlobs[options.target] :
       _.flatten(_.union( [taskGlobs.src], [taskGlobs.watch] ));
     _taskBase = wires.path(task, 'base');
+
+    if (options.base && options.keepDir) {
+      options.base = path.join(options.base, taskConf.dir.src);
+    }
 
     glob = _glob(glob, options, _taskBase, isNegated);
 
