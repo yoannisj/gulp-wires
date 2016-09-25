@@ -91,10 +91,15 @@ You can pass options to gulp-load-plugins with the `loadPlugins` setting. Please
 
     wires.if(condition, true[, false]); // @alias require('gulpif')(condition, true, false);
     wires.unless(condition, false[, true]); // @alias require('gulpif')(condition, true, false);
+    wires.debug(title); // prints out the files currently in the stream
+
 **coming soon:**
 
     wires.data('namespace', data);
 
+### Debugging tasks
+
+When running your gulp tasks, you can pass the `--debug` flag to debug your tasks. This enables **gulp-plumber** and sets **gulp-load-plugins**'s `debug` option to true.
 ## Configuration
 
 The configuration object may contain lodash templates to cross-reference settings. By default, these templates have access to node's 'path' module, and 'lodash' (referenced by the `_`). Additional modules can be made available via the `imports` setting.
