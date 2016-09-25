@@ -89,10 +89,10 @@ You can pass options to gulp-load-plugins with the `loadPlugins` setting. Please
     wires.env; // @alias require('gulp-util').env
     wires.config // configuration hash, resolved and with defaults
 
+    wires.if(condition, true[, false]); // @alias require('gulpif')(condition, true, false);
+    wires.unless(condition, false[, true]); // @alias require('gulpif')(condition, true, false);
 **coming soon:**
 
-    wires.if(condition, true[, false]);
-    wires.unless(condition, false[, true]);
     wires.data('namespace', data);
 
 ## Configuration

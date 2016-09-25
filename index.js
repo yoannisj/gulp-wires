@@ -45,6 +45,11 @@ wires.env = gutil.env;
 
 // =gulpif
 wires.if = gulpif;
+wires.unless = function(condition, no, yes) {
+  // allow omitting the 'yes' argument
+  yes = yes || function() {};
+  return gulpif(condition, yes, no);
+}
 
 // =gulpdebug
 wires.debug = function(options) {
