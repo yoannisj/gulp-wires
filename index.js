@@ -21,11 +21,7 @@ var gulpif = require('gulp-if');
 var debug = require('gulp-debug');
 var plumber = require('gulp-plumber');
 
-// Todo: Handle errors
 // Todo: Throw Warnings if options.debug is set to true
-// Todo: implement 'filename' option
-// - accept 'kebab-case' and 'camel-case' keywords
-// - accept a function receiving the task name and returning the file name
 // Todo: Implement a 'data' method to share data through task functions
 // Todo: If config is given as filepath, use config's base path as default 'build' path
 // ¿ Todo: move options to config ?
@@ -45,6 +41,11 @@ wires.env = gutil.env;
 
 // =gulpif
 wires.if = gulpif;
+wires.unless = function(condition, no, yes) {
+  // allow omitting the 'yes' argument
+  yes = yes || function() {};
+  return gulpif(condition, yes, no);
+}
 
 // =gulpdebug
 wires.debug = function(options) {
@@ -85,6 +86,8 @@ var _isSetup = false,
 
     loadPlugins: {
       config: path.join(process.cwd(), 'package.json'),
+      pattern: ['gulp-*', 'gulp.*', '!gulp-wires'],
+      camelize: false,
       debug: '<%= debug %>'
     },
 
@@ -731,11 +734,16 @@ function _glob(glob, options, _taskBase, _taskNegate) {
     }
 
     // compute task files' glob
-    var taskGlobs = wires.getTaskConfig(task).files;
+    var taskConf = wires.getTaskConfig(task),
+      taskGlobs = taskConf.files;
 
     glob = options.target ? taskGlobs[options.target] :
       _.flatten(_.union( [taskGlobs.src], [taskGlobs.watch] ));
     _taskBase = wires.path(task, 'base');
+
+    if (options.base && options.keepDir) {
+      options.base = path.join(options.base, taskConf.dir.src);
+    }
 
     glob = _glob(glob, options, _taskBase, isNegated);
 
