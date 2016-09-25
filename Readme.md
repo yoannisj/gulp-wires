@@ -16,8 +16,8 @@
 + Automatically watch task src files using the `--watch` flag
 
 **Coming Soon**:
-+ Handle Stream errors automatically
-+ Stream helpers ('if', 'debug', 'rename', etc.)
++ Multipe src => dest directory mapping
++ More stream helpers ('rename', etc.)
 + Store data in memory to use across tasks
 
 ## API
@@ -33,6 +33,12 @@
     wires.loadTask('task-name', deps, fn);
 
 ### Working with gulp plugins
+
+Gulp plugins are automatically loaded using [gulp-load-plugins](https://github.com/jackfranklin/gulp-load-plugins), and plugin options can be set in separate files.
+
+Plugin option files are loaded from the options directory, configured with the `optionsPath` setting. They need to share the plugin's name (without the 'gulp-'/'gulp.' prefix).
+
+You can pass options to gulp-load-plugins with the `loadPlugins` setting. Please note that by default the gulp-load-plugins' `camelize` option is set to `false`.
 
     wires.options('pluginName'[, overrides ]);
     wires.plugin('pluginName'[, optionOverrides ]);
@@ -83,11 +89,17 @@
     wires.env; // @alias require('gulp-util').env
     wires.config // configuration hash, resolved and with defaults
 
+    wires.if(condition, true[, false]); // @alias require('gulpif')(condition, true, false);
+    wires.unless(condition, false[, true]); // @alias require('gulpif')(condition, true, false);
+    wires.debug(title); // prints out the files currently in the stream
+
 **coming soon:**
 
-    wires.if(condition, true[, false]);
-    wires.unless(condition, false[, true]);
     wires.data('namespace', data);
+
+### Debugging tasks
+
+When running your gulp tasks, you can pass the `--debug` flag to debug your tasks. This enables **gulp-plumber** and sets **gulp-load-plugins**'s `debug` option to true.
 
 ## Configuration
 
