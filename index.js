@@ -85,6 +85,8 @@ var _isSetup = false,
 
     loadPlugins: {
       config: path.join(process.cwd(), 'package.json'),
+      pattern: ['gulp-*', 'gulp.*', '!gulp-wires'],
+      camelize: false,
       debug: '<%= debug %>'
     },
 

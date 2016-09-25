@@ -34,6 +34,12 @@
 
 ### Working with gulp plugins
 
+Gulp plugins are automatically loaded using [gulp-load-plugins](https://github.com/jackfranklin/gulp-load-plugins), and plugin options can be set in separate files.
+
+Plugin option files are loaded from the options directory, configured with the `optionsPath` setting. They need to share the plugin's name (without the 'gulp-'/'gulp.' prefix).
+
+You can pass options to gulp-load-plugins with the `loadPlugins` setting. Please note that by default the gulp-load-plugins' `camelize` option is set to `false`.
+
     wires.options('pluginName'[, overrides ]);
     wires.plugin('pluginName'[, optionOverrides ]);
 
