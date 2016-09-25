@@ -16,8 +16,8 @@
 + Automatically watch task src files using the `--watch` flag
 
 **Coming Soon**:
-+ Handle Stream errors automatically
-+ Stream helpers ('if', 'debug', 'rename', etc.)
++ Multipe src => dest directory mapping
++ More stream helpers ('rename', etc.)
 + Store data in memory to use across tasks
 
 ## API
@@ -100,6 +100,7 @@ You can pass options to gulp-load-plugins with the `loadPlugins` setting. Please
 ### Debugging tasks
 
 When running your gulp tasks, you can pass the `--debug` flag to debug your tasks. This enables **gulp-plumber** and sets **gulp-load-plugins**'s `debug` option to true.
+
 ## Configuration
 
 The configuration object may contain lodash templates to cross-reference settings. By default, these templates have access to node's 'path' module, and 'lodash' (referenced by the `_`). Additional modules can be made available via the `imports` setting.
