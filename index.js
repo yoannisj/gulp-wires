@@ -568,33 +568,45 @@ wires.hasOptions = function(name, filename) {
   return _exists('options', name, filename);
 };
 
-// =getOptions
+// =options
 // - returns options for a given plugin as defined in options' file
 // @param name => the name of the plugin for which to retreive the options
 // @param filename => the name of the file exporting the plugin options to retreive
+// @param overrides => [optional] option overrides to merge into defaults
 
-wires.getOptions = function(name, filename) {
-  // default to an empty object
-  return _get('options', name, filename) || {};
+wires.options = function(name, filename, overrides) {
+  // allow omitting the 'filename' argument
+  if (typeof filename == 'object') {
+    overrides = filename;
+    filename = name;
+  }
+
+  // load defaults from file, default to an empty object
+  var options = _get('options', name, filename) || {};
+
+  // override default options from file
+  if (typeof overrides == 'object') {
+    _.assign(options, overrides);
+  }
+
+  return options;
 };
 
 // =plugin
 // - runs a given plugin with default options and returns the result
 // @param name => name of the plugin to run
-// @param options => [optional] options to pass to the plugin instead of defaults
-//    - can be a hash of options which will be merged into the defaults
-//    - or the name of a file exporting alternative options
+// @param filename => the name of the file exporting the plugin options to retreive
+// @param overrides => [optional] option overrides to merge into defaults
 
-wires.plugin = function(name, options) {
-  // use default options if none passed
-  // or load options from file if filename is passed
-  if (options === undefined || typeof options == 'string') {
-    options = wires.getOptions(name, options);
+wires.plugin = function(name, filename, overrides) {
+  // allow passing 'false' instead of filename to use options passed on the fly
+  if (filename === false) {
+    options = overrides;
   }
-
-  // merge options into defaults
-  else if (typeof options == 'object') {
-    options = _.assign(wires.getOptions(name), options);
+  
+  // or, load plugin options from options file
+  else {
+    options = wires.options(name, filename, overrides);
   }
 
   // invoke plugin and return result
