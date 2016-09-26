@@ -224,26 +224,26 @@ describe('the `hasOptions` method', function() {
 
 });
 
-// =getOptions
-// -----------
-describe('the `getOptions` method', function() {
+// =options
+// --------
+describe('the `options` method', function() {
 
   beforeEach(function() {
     this.wires = get_wires(confFile);
   });
 
   it('returns the options exported by an options file', function() {
-    expect(this.wires.getOptions('sass')).toBeDefined();
+    expect(this.wires.options('sass')).toBeDefined();
   });
 
   it('returns options as exported by the file (can be any type)', function() {
-    expect(this.wires.getOptions('sass')).toEqual(jasmine.any(Object));
-    expect(this.wires.getOptions('plumber')).toEqual(jasmine.any(Function));
+    expect(this.wires.options('sass')).toEqual(jasmine.any(Object));
+    expect(this.wires.options('plumber')).toEqual(jasmine.any(Function));
   });
 
   it('returns an empty object as default options', function() {
-    expect(this.wires.getOptions('foo')).toBeDefined();
-    expect(this.wires.getOptions('foo')).toEqual({});
+    expect(this.wires.options('foo')).toBeDefined();
+    expect(this.wires.options('foo')).toEqual({});
   });
 
 });
@@ -252,7 +252,7 @@ describe('the `getOptions` method', function() {
 // -------
 describe('the `plugin` method', function() {
 
-  it('should use the plugin options returned by `getOptions` by default', function() {
+  it('should use the plugin options returned by `options` by default', function() {
 
   });
 
