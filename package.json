@@ -1,6 +1,6 @@
 {
   "name": "gulp-wires",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Configuration and helpers for modular gulp tasks.",
   "main": "index.js",
   "directories": {
