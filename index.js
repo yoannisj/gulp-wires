@@ -914,6 +914,9 @@ function _monkeyPatchGulp() {
 
   // =gulp.src
   gulp.src = function(globs, options) {
+    // allow omitting the 'options' argument
+    options = options || {};
+
     // use 'wires.src' to replace task names with globs in config
     globs = wires.mainGlob(globs);
 
@@ -921,7 +924,7 @@ function _monkeyPatchGulp() {
     var stream = _gulpAPI.src.call(gulp, globs, options);
 
     // automatically run plumber in debug mode
-    if (wires.config.debug){
+    if (wires.config.debug) {
       var plumberOpts = options.plumber || wires.config.plumber || {};
 
       return stream
