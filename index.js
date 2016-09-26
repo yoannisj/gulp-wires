@@ -417,6 +417,7 @@ wires.getTaskConfig = function(task) {
   // inject option defaults
   conf = _.assign({
     deps: [],
+    autoWatch: true,
     root: {
       src: wires.config.root.src,
       dest: wires.config.root.dest
@@ -489,6 +490,8 @@ wires.getTask = function(name, filename) {
 // @param deps => array of task-names to run before
 // @param fn => [optional] task function or name of file exporting it
 
+var _watchingTasks = {};
+
 wires.loadTask = function(name, deps, fn) {
 
   // get task configuration
@@ -506,16 +509,18 @@ wires.loadTask = function(name, deps, fn) {
     fn = wires.getTask(name, fn);
   }
 
-  // register task through gulp
-  gulp.task(name, deps, fn);
+  // register task through gulp, and watch for file changes in '--watch' mode
+  // - uses a wrapper function to automate watching
+  gulp.task(name, deps, function(done) {
+    // start watching for file changes in '--watch' mode
+    if (wires.env.watch && !_watchingTasks[name] && conf.autoWatch) {
+      gulp.watch( wires.watchGlob(name), [name] );
+      _watchingTasks[name] = true;
+    }
 
-  // automate watching files and run task on changes
-  // PROBLEM: reference other task's watch/src files..
-  // TODO: make this possible in task configuration
-  // TODO: TEST this
-  // if (wires.env.watch) {
-  //   gulp.watch(wires.watch(name), fn);
-  // }
+    // run task function
+    return fn(done);
+  });
 };
 
 // =loadTasks
