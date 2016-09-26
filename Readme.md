@@ -31,6 +31,9 @@
     wires.loadTask('task-name');
     wires.loadTask('task-name', deps);
     wires.loadTask('task-name', deps, fn);
+    wires.loadTask('task-name', fn);
+
+When run with the '--watch' flag, gulp-wires automatically starts watching for file changes to re-run the task's function. The files that are observed are determined by the task's `files.watch` setting. You can disable this behaviour on a per-task basis, by setting `autoWatch` to `false` in the task's configuration hash.
 
 ### Working with gulp plugins
 
