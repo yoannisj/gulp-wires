@@ -498,29 +498,34 @@ wires.loadTask = function(name, deps, fn) {
   var conf = wires.getTaskConfig(name);
 
   // allow omitting the 'deps' argument
-  if (!Array.isArray(deps)) {
+  if (arguments.length <= 2 && !Array.isArray(deps)) {
     fn = deps;
     deps = conf.deps;
   }
 
   // load function from task file if no task function is provided
   // or if a filename is provided instead
-  if (!fn || typeof fn == 'string') {
-    fn = wires.getTask(name, fn);
+  if (!fn || typeof fn == 'string') fn = wires.getTask(name, fn);
+
+  // register group tasks without a main function to just run dependencies
+  if (!fn) {
+    gulp.task(name, deps);
+  } else {
+
+    // register task through gulp, and watch for file changes in '--watch' mode
+    // - uses a wrapper function to automate watching
+    gulp.task(name, deps, function(done) {
+      // start watching for file changes in '--watch' mode
+      if (wires.env.watch && !_watchingTasks[name] && conf.autoWatch) {
+        gulp.watch( wires.watchGlob(name), [name] );
+        _watchingTasks[name] = true;
+      }
+
+      // run task function
+      return fn(done);
+    });
+
   }
-
-  // register task through gulp, and watch for file changes in '--watch' mode
-  // - uses a wrapper function to automate watching
-  gulp.task(name, deps, function(done) {
-    // start watching for file changes in '--watch' mode
-    if (wires.env.watch && !_watchingTasks[name] && conf.autoWatch) {
-      gulp.watch( wires.watchGlob(name), [name] );
-      _watchingTasks[name] = true;
-    }
-
-    // run task function
-    return fn(done);
-  });
 };
 
 // =loadTasks
