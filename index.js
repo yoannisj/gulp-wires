@@ -937,9 +937,20 @@ function _monkeyPatchGulp() {
     var plumberOpts = options.plumber || wires.config.plumber || {};
 
     // allow setting 'options.plumber' to 'false' to disable plumber
-    if (plumberOpts) {
-      return stream
-        .pipe(wires.plumber(plumberOpts));
+    if (plumberOpts)
+    {
+      // continue stream pipe if error catched in --watch mode
+      if (wires.env.watch) {
+        var _errorHandler = plumberOpts.errorHandler;
+        plumberOpts.errorHandler = function(err) {
+          _errorHandler(err);
+          // tell the stream we are done
+          this.push(null);
+        }
+      }
+
+      // automatically use plumber
+      return stream.pipe(wires.plumber(plumberOpts));
     }
 
     return stream;
