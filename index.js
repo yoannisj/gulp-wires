@@ -934,9 +934,10 @@ function _monkeyPatchGulp() {
     var stream = _gulpAPI.src.call(gulp, globs, options);
 
     // automatically run plumber in debug mode
-    if (wires.config.debug) {
-      var plumberOpts = options.plumber || wires.config.plumber || {};
+    var plumberOpts = options.plumber || wires.config.plumber || {};
 
+    // allow setting 'options.plumber' to 'false' to disable plumber
+    if (plumberOpts) {
       return stream
         .pipe(wires.plumber(plumberOpts));
     }
