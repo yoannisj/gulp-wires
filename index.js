@@ -91,7 +91,14 @@ var _isSetup = false,
       debug: '<%= debug %>'
     },
 
-    plumber: {},
+    plumber: {
+      errorHandler: function(err) {
+        gutil.log(
+          gutil.colors.cyan('Plumber') + gutil.colors.red(' found unhandled error:\n'),
+          err.toString()
+        );
+      }
+    },
 
     root: {
       src: './src',
@@ -934,7 +941,7 @@ function _monkeyPatchGulp() {
     var stream = _gulpAPI.src.call(gulp, globs, options);
 
     // automatically run plumber in debug mode
-    var plumberOpts = options.plumber || wires.config.plumber || {};
+    var plumberOpts = options.plumber || wires.config.plumber;
 
     // allow setting 'options.plumber' to 'false' to disable plumber
     if (plumberOpts)
