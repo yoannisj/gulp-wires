@@ -93,10 +93,14 @@ var _isSetup = false,
 
     plumber: {
       errorHandler: function(err) {
+        // log error
         gutil.log(
           gutil.colors.cyan('Plumber') + gutil.colors.red(' found unhandled error:\n'),
           err.toString()
         );
+
+        // continue stream-pipe in --watch mode
+        this.push(null);
       }
     },
 
@@ -946,15 +950,15 @@ function _monkeyPatchGulp() {
     // allow setting 'options.plumber' to 'false' to disable plumber
     if (plumberOpts)
     {
-      // continue stream pipe if error catched in --watch mode
-      if (wires.env.watch) {
-        var _errorHandler = plumberOpts.errorHandler;
-        plumberOpts.errorHandler = function(err) {
-          _errorHandler(err);
-          // tell the stream we are done
-          this.push(null);
-        }
-      }
+      // // continue stream pipe if error catched in --watch mode
+      // if (wires.env.watch) {
+      //   var _errorHandler = plumberOpts.errorHandler;
+      //   plumberOpts.errorHandler = function(err) {
+      //     _errorHandler(err);
+      //     // tell the stream we are done
+      //     this.push(null);
+      //   }
+      // }
 
       // automatically use plumber
       return stream.pipe(wires.plumber(plumberOpts));
