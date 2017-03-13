@@ -491,8 +491,16 @@ wires.hasTask = function( name, filename ) {
 // @param name => the name of the task to retreive
 // @param filename => the name of the file exporting the task function
 
-wires.getTask = function(name, filename) {
-  return _get('task', name, filename);
+wires.getTask = function(name, filename)
+{
+  var task = _get('task', name, filename);
+
+  // allow task's that only use a config (for example tasks that just define dependencies)
+  if (!task && wires.config.tasks.hasOwnProperty(name)) {
+    task = function(done) { done(); }
+  }
+
+  return task;
 };
 
 // =loadTask
